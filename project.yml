@@ -1,0 +1,48 @@
+name: BisectWindow
+options:
+  bundleIdPrefix: com.garaemon
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+
+targets:
+  BisectWindow:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    info:
+      path: Sources/Info.plist
+      properties:
+        LSUIElement: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.garaemon.BisectWindow
+        CODE_SIGN_ENTITLEMENTS: BisectWindow.entitlements
+        SWIFT_VERSION: "5.10"
+
+  BisectWindowTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+    info:
+      path: Tests/Info.plist
+      properties:
+        CFBundlePackageType: BNDL
+    dependencies:
+      - target: BisectWindow
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.garaemon.BisectWindowTests
+        SWIFT_VERSION: "5.10"
+
+schemes:
+  BisectWindow:
+    build:
+      targets:
+        BisectWindow: all
+        BisectWindowTests: [test]
+    test:
+      targets:
+        - BisectWindowTests

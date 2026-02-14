@@ -1,0 +1,10 @@
+*.xcodeproj
+build/
+DerivedData/
+.DS_Store
+*.xcworkspace
+xcuserdata/
+*.swp
+*~
+Sources/Info.plist
+Tests/Info.plist
