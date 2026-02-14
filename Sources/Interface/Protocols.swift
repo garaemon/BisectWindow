@@ -1,6 +1,6 @@
 protocol SystemStateProtocol {
     func fetchFocusedWindow() -> WindowInfo?
-    func listScreens() -> [Rect]
+    func listScreens() -> [ScreenInfo]
 }
 
 protocol WindowActionProtocol {
