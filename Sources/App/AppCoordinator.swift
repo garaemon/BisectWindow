@@ -4,19 +4,35 @@ final class AppCoordinator {
     private let engine = BisectEngine()
     private let axClient = AXClient()
     private let configRepository = UserDefaultsConfigRepository()
+    private let overlay: OverlayProtocol
     private let hotKeyManager: HotKeyManager
+    private let settingsWindowController: SettingsWindowController
+    private var statusBarController: StatusBarController?
 
     private var state: AppState = .idle
+    private var isOverlayEnabled: Bool
     private var accessibilityPollTimer: Timer?
 
-    init() {
+    init(overlay: OverlayProtocol = OverlayWindowController()) {
         let config = configRepository.loadConfig()
-        hotKeyManager = HotKeyManager(
+        self.overlay = overlay
+        self.isOverlayEnabled = config.isOverlayEnabled
+        let settingsViewModel = SettingsViewModel(
+            configRepository: configRepository
+        )
+        self.settingsWindowController = SettingsWindowController(
+            viewModel: settingsViewModel
+        )
+        self.hotKeyManager = HotKeyManager(
             prefixModifiers: config.prefixKeyModifiers
         )
+        settingsViewModel.onConfigChanged = { [weak self] in
+            self?.reloadConfig()
+        }
     }
 
     func start() {
+        installStatusBar()
         let trusted = AccessibilityChecker.checkAccessibility()
         debugLog("[AppCoordinator] accessibility trusted: \(trusted)")
         if trusted {
@@ -24,6 +40,12 @@ final class AppCoordinator {
         } else {
             debugLog("[AppCoordinator] waiting for accessibility permission...")
             pollForAccessibility()
+        }
+    }
+
+    private func installStatusBar() {
+        statusBarController = StatusBarController { [weak self] in
+            self?.settingsWindowController.showSettings()
         }
     }
 
@@ -56,7 +78,21 @@ final class AppCoordinator {
 
     func stop() {
         hotKeyManager.stop()
+        overlay.hideOverlay()
         state = .idle
+    }
+
+    /// Refresh overlay-enabled flag and prefix modifiers from persisted config.
+    /// Settings UI calls this after saving changes.
+    func reloadConfig() {
+        let config = configRepository.loadConfig()
+        isOverlayEnabled = config.isOverlayEnabled
+        hotKeyManager.updatePrefixModifiers(config.prefixKeyModifiers)
+        if state == .pendingInput, isOverlayEnabled {
+            overlay.showOverlay()
+        } else {
+            overlay.hideOverlay()
+        }
     }
 }
 
@@ -68,9 +104,13 @@ private extension AppCoordinator {
         case .prefixBegan:
             debugLog("[AppCoordinator] prefix began")
             state = .pendingInput
+            if isOverlayEnabled {
+                overlay.showOverlay()
+            }
         case .prefixEnded:
             debugLog("[AppCoordinator] prefix ended")
             state = .idle
+            overlay.hideOverlay()
         case .directionPressed(let direction):
             debugLog("[AppCoordinator] direction: \(direction)")
             handleDirection(direction)
