@@ -19,6 +19,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.garaemon.BisectWindow
         CODE_SIGN_ENTITLEMENTS: BisectWindow.entitlements
+        CODE_SIGN_IDENTITY: "-"
         SWIFT_VERSION: "5.10"
 
   BisectWindowTests:

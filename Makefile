@@ -7,12 +7,10 @@ build:
 	xcodebuild build \
 		-project BisectWindow.xcodeproj \
 		-scheme BisectWindow \
-		-destination 'platform=macOS' \
-		CODE_SIGNING_ALLOWED=NO
+		-destination 'platform=macOS'
 
 test:
 	xcodebuild test \
 		-project BisectWindow.xcodeproj \
 		-scheme BisectWindow \
-		-destination 'platform=macOS' \
-		CODE_SIGNING_ALLOWED=NO
+		-destination 'platform=macOS'
