@@ -19,7 +19,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.garaemon.BisectWindow
         CODE_SIGN_ENTITLEMENTS: BisectWindow.entitlements
-        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: RFZEX72NST
+        "CODE_SIGN_IDENTITY[sdk=macosx*]": "Apple Development"
         SWIFT_VERSION: "5.10"
 
   BisectWindowTests:
