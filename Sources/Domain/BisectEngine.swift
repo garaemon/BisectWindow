@@ -4,7 +4,7 @@ enum BisectResult: Equatable {
 }
 
 /// Detected position state of a window relative to its screen.
-enum WindowPosition {
+enum WindowPosition: Equatable {
     case leftHalf
     case rightHalf
     case topHalf
@@ -39,9 +39,10 @@ struct BisectEngine {
             window: window.frame, screen: screen.frame
         )
 
-        // Screen traversal: already at half in same direction at edge
+        // Screen traversal: window sits in the half on the side we're
+        // pushing toward and touches that edge of the screen.
         if shouldTraverseScreen(
-            position: position, direction: direction
+            direction: direction, window: window.frame, screen: screen.frame
         ) {
             return computeScreenTraversal(
                 direction: direction, window: window,
@@ -135,14 +136,31 @@ private extension BisectEngine {
         }
     }
 
+    /// Traverse when the window is clearly biased toward the direction
+    /// (midpoint past screen center), touches that edge, and fills the
+    /// screen vertically. Vertical span guards against quarter windows
+    /// like topRightQuarter that also touch the right edge but should
+    /// fall through to half-snap, not traversal. An exact half-size
+    /// match is not required so apps with a minimum window width can
+    /// still cross to the neighbouring screen.
+    /// V2.0: up/down screen traversal is out of scope.
     func shouldTraverseScreen(
-        position: WindowPosition, direction: Direction
+        direction: Direction, window: Rect, screen: Rect
     ) -> Bool {
-        switch (position, direction) {
-        case (.rightHalf, .right): return true
-        case (.leftHalf, .left): return true
-        // V2.0: up/down screen traversal is out of scope
-        default: return false
+        let edgeTolerance = max(tolerance, 50.0)
+        let spansVertically = window.minY <= screen.minY + edgeTolerance
+            && window.maxY >= screen.maxY - edgeTolerance
+        switch direction {
+        case .right:
+            let biasedRight = window.midX > screen.midX + tolerance
+            let touchesRightEdge = window.maxX >= screen.maxX - edgeTolerance
+            return biasedRight && touchesRightEdge && spansVertically
+        case .left:
+            let biasedLeft = window.midX < screen.midX - tolerance
+            let touchesLeftEdge = window.minX <= screen.minX + edgeTolerance
+            return biasedLeft && touchesLeftEdge && spansVertically
+        case .up, .down:
+            return false
         }
     }
 
@@ -159,9 +177,11 @@ private extension BisectEngine {
             return .noAction
         }
 
-        // Place in the half on the opposite side of the new screen
+        // Land on the half closest to the previous screen so the user's
+        // focus point stays near the screen boundary they just crossed.
+        // (Pressing Right lands on the new screen's leftHalf, etc.)
         let targetFrame = computeHalfFrame(
-            direction: direction, screen: nextScreen.frame
+            direction: direction.opposite, screen: nextScreen.frame
         )
         return handleResizability(
             window: window, targetFrame: targetFrame,

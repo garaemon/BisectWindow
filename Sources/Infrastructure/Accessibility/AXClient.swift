@@ -48,20 +48,29 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
     }
 
     func listScreens() -> [ScreenInfo] {
+        // visibleFrame excludes the menu bar and Dock so tiling never lands
+        // under them. We then flip the Y axis: NSScreen uses bottom-left
+        // origin while AXUIElement (and therefore window frames returned by
+        // fetchFocusedWindow) uses top-left origin anchored on the primary
+        // display.
+        let primaryHeight = NSScreen.screens
+            .first { $0.frame.origin == .zero }?
+            .frame.height ?? 0
         return NSScreen.screens.compactMap { screen in
             guard let screenNumber = screen.deviceDescription[
                 NSDeviceDescriptionKey("NSScreenNumber")
             ] as? NSNumber else {
                 return nil
             }
-            let frame = screen.frame
+            let visible = screen.visibleFrame
+            let yAX = primaryHeight - visible.maxY
             return ScreenInfo(
                 id: screenNumber.uint32Value,
                 frame: Rect(
-                    x: Double(frame.origin.x),
-                    y: Double(frame.origin.y),
-                    width: Double(frame.size.width),
-                    height: Double(frame.size.height)
+                    x: Double(visible.origin.x),
+                    y: Double(yAX),
+                    width: Double(visible.size.width),
+                    height: Double(visible.size.height)
                 )
             )
         }
@@ -172,8 +181,18 @@ private extension AXClient {
     }
 
     func findScreenId(containing point: CGPoint) -> UInt32 {
+        let primaryHeight = NSScreen.screens
+            .first { $0.frame.origin == .zero }?
+            .frame.height ?? 0
         for screen in NSScreen.screens {
-            if screen.frame.contains(point) {
+            let visible = screen.visibleFrame
+            let axRect = NSRect(
+                x: visible.origin.x,
+                y: primaryHeight - visible.maxY,
+                width: visible.size.width,
+                height: visible.size.height
+            )
+            if axRect.contains(point) {
                 if let num = screen.deviceDescription[
                     NSDeviceDescriptionKey("NSScreenNumber")
                 ] as? NSNumber {
