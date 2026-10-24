@@ -14,7 +14,7 @@ enum EngineFixtures {
         frame: Rect, isResizable: Bool = true
     ) -> WindowInfo {
         WindowInfo(
-            id: 1, frame: frame, screenId: 1, isResizable: isResizable
+            ownerProcessId: 1, frame: frame, isResizable: isResizable
         )
     }
 }

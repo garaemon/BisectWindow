@@ -1,9 +1,18 @@
 import Cocoa
 
+/// Wires the hot-key tap, BisectEngine, the Accessibility client, the
+/// overlay, and the settings UI together.
+///
+/// - `start()` installs the status bar item and starts the tap once the
+///   Accessibility permission is granted, polling every second until then.
+/// - Holding the prefix moves `state` to `.pendingInput` and shows the
+///   overlay. Releasing the prefix returns `state` to `.idle`.
+/// - All callbacks arrive on the main thread.
 final class AppCoordinator {
     private let engine = BisectEngine()
-    private let axClient = AXClient()
-    private let configRepository = UserDefaultsConfigRepository()
+    private let systemState: SystemStateProtocol
+    private let windowAction: WindowActionProtocol
+    private let configRepository: ConfigRepositoryProtocol
     private let overlay: OverlayProtocol
     private let hotKeyManager: HotKeyManager
     private let settingsWindowController: SettingsWindowController
@@ -13,8 +22,17 @@ final class AppCoordinator {
     private var isOverlayEnabled: Bool
     private var accessibilityPollTimer: Timer?
 
-    init(overlay: OverlayProtocol = OverlayWindowController()) {
+    init(
+        systemState: SystemStateProtocol = AXClient(),
+        windowAction: WindowActionProtocol = AXClient(),
+        configRepository: ConfigRepositoryProtocol =
+            UserDefaultsConfigRepository(),
+        overlay: OverlayProtocol = OverlayWindowController()
+    ) {
         let config = configRepository.loadConfig()
+        self.systemState = systemState
+        self.windowAction = windowAction
+        self.configRepository = configRepository
         self.overlay = overlay
         self.isOverlayEnabled = config.isOverlayEnabled
         let settingsViewModel = SettingsViewModel(
@@ -33,9 +51,9 @@ final class AppCoordinator {
 
     func start() {
         installStatusBar()
-        let trusted = AccessibilityChecker.checkAccessibility()
-        debugLog("[AppCoordinator] accessibility trusted: \(trusted)")
-        if trusted {
+        let isTrusted = AccessibilityChecker.requestAccessibilityIfNeeded()
+        debugLog("[AppCoordinator] accessibility trusted: \(isTrusted)")
+        if isTrusted {
             startHotKeyManager()
         } else {
             debugLog("[AppCoordinator] waiting for accessibility permission...")
@@ -50,12 +68,7 @@ final class AppCoordinator {
     }
 
     private func startHotKeyManager() {
-        let screens = axClient.listScreens()
-        debugLog("[AppCoordinator] screens: \(screens)")
-
-        let config = configRepository.loadConfig()
-        debugLog("[AppCoordinator] config: prefixModifiers=\(config.prefixKeyModifiers) (0x\(String(config.prefixKeyModifiers, radix: 16)))")
-
+        debugLog("[AppCoordinator] screens: \(systemState.listScreens())")
         hotKeyManager.onAction = { [weak self] action in
             self?.handleAction(action)
         }
@@ -67,7 +80,7 @@ final class AppCoordinator {
         accessibilityPollTimer = Timer.scheduledTimer(
             withTimeInterval: 1.0, repeats: true
         ) { [weak self] timer in
-            if AXIsProcessTrusted() {
+            if AccessibilityChecker.isAccessibilityTrusted() {
                 debugLog("[AppCoordinator] accessibility now granted!")
                 timer.invalidate()
                 self?.accessibilityPollTimer = nil
@@ -77,6 +90,8 @@ final class AppCoordinator {
     }
 
     func stop() {
+        accessibilityPollTimer?.invalidate()
+        accessibilityPollTimer = nil
         hotKeyManager.stop()
         overlay.hideOverlay()
         state = .idle
@@ -96,9 +111,9 @@ final class AppCoordinator {
     }
 }
 
-// MARK: - Private
-
-private extension AppCoordinator {
+extension AppCoordinator {
+    /// Applies one hot-key event to the pending-input state, the overlay,
+    /// and the focused window. Internal so tests can drive it without a tap.
     func handleAction(_ action: HotKeyAction) {
         switch action {
         case .prefixBegan:
@@ -119,42 +134,44 @@ private extension AppCoordinator {
             handleMaximize()
         }
     }
+}
 
+private extension AppCoordinator {
     func handleDirection(_ direction: Direction) {
-        guard let window = axClient.fetchFocusedWindow() else {
+        guard let window = systemState.fetchFocusedWindow() else {
             debugLog("[AppCoordinator] fetchFocusedWindow failed")
             return
         }
-        debugLog("[AppCoordinator] window: pid=\(window.id) frame=\(window.frame) screenId=\(window.screenId) resizable=\(window.isResizable)")
-        let screens = axClient.listScreens()
+        debugLog("[AppCoordinator] window: pid=\(window.ownerProcessId) frame=\(window.frame) resizable=\(window.isResizable)")
+        let screens = systemState.listScreens()
         let result = engine.computeFrame(
             direction: direction, window: window, screens: screens
         )
         debugLog("[AppCoordinator] computeFrame result: \(result)")
-        applyResult(result, windowId: window.id)
+        applyResult(result, ownerProcessId: window.ownerProcessId)
     }
 
     func handleMaximize() {
-        guard let window = axClient.fetchFocusedWindow() else {
+        guard let window = systemState.fetchFocusedWindow() else {
             debugLog("[AppCoordinator] fetchFocusedWindow failed (maximize)")
             return
         }
-        debugLog("[AppCoordinator] maximize window: pid=\(window.id) frame=\(window.frame)")
-        let screens = axClient.listScreens()
+        debugLog("[AppCoordinator] maximize window: pid=\(window.ownerProcessId) frame=\(window.frame)")
+        let screens = systemState.listScreens()
         let result = engine.computeMaximize(
             window: window, screens: screens
         )
         debugLog("[AppCoordinator] computeMaximize result: \(result)")
-        applyResult(result, windowId: window.id)
+        applyResult(result, ownerProcessId: window.ownerProcessId)
     }
 
-    func applyResult(_ result: BisectResult, windowId: Int) {
+    func applyResult(_ result: BisectResult, ownerProcessId: Int) {
         if case .move(let frame) = result {
-            debugLog("[AppCoordinator] moving window \(windowId) to \(frame)")
-            let success = axClient.moveAndResize(
-                windowId: windowId, to: frame
+            debugLog("[AppCoordinator] moving focused window of pid \(ownerProcessId) to \(frame)")
+            let didMove = windowAction.moveAndResizeFocusedWindow(
+                ownerProcessId: ownerProcessId, to: frame
             )
-            debugLog("[AppCoordinator] moveAndResize success: \(success)")
+            debugLog("[AppCoordinator] moveAndResize success: \(didMove)")
         } else {
             debugLog("[AppCoordinator] noAction")
         }

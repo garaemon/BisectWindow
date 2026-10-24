@@ -4,7 +4,9 @@ protocol SystemStateProtocol {
 }
 
 protocol WindowActionProtocol {
-    func moveAndResize(windowId: Int, to frame: Rect) -> Bool
+    func moveAndResizeFocusedWindow(
+        ownerProcessId: Int, to frame: Rect
+    ) -> Bool
 }
 
 protocol ConfigRepositoryProtocol {

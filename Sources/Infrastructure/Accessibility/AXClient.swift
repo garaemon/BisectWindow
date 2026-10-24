@@ -17,14 +17,16 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
             return nil
         }
 
-        guard let position = extractCGPoint(
-            axWindow, attribute: kAXPositionAttribute
+        guard let position = extractAXValue(
+            axWindow, attribute: kAXPositionAttribute,
+            type: .cgPoint, initial: CGPoint.zero
         ) else {
             return nil
         }
 
-        guard let size = extractCGSize(
-            axWindow, attribute: kAXSizeAttribute
+        guard let size = extractAXValue(
+            axWindow, attribute: kAXSizeAttribute,
+            type: .cgSize, initial: CGSize.zero
         ) else {
             return nil
         }
@@ -36,14 +38,12 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
             height: Double(size.height)
         )
 
-        let resizable = checkIsResizable(axWindow)
-        let screenId = findScreenId(containing: position)
+        let isResizable = checkIsResizable(axWindow)
 
         return WindowInfo(
-            id: Int(pid),
+            ownerProcessId: Int(pid),
             frame: frame,
-            screenId: screenId,
-            isResizable: resizable
+            isResizable: isResizable
         )
     }
 
@@ -79,8 +79,10 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
     // MARK: - WindowActionProtocol
 
     @discardableResult
-    func moveAndResize(windowId: Int, to frame: Rect) -> Bool {
-        let pid = pid_t(windowId)
+    func moveAndResizeFocusedWindow(
+        ownerProcessId: Int, to frame: Rect
+    ) -> Bool {
+        let pid = pid_t(ownerProcessId)
         let axApp = AXUIElementCreateApplication(pid)
 
         guard let axWindow = copyAttributeValue(
@@ -99,22 +101,24 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
             .cgSize, &size
         )!
 
-        // Set position first, then size
-        let posResult = AXUIElementSetAttributeValue(
+        let positionResult = AXUIElementSetAttributeValue(
             axWindow, kAXPositionAttribute as CFString, positionValue
         )
         let sizeResult = AXUIElementSetAttributeValue(
             axWindow, kAXSizeAttribute as CFString, sizeValue
         )
 
-        // Re-apply position after resize to handle edge cases
+        // Apps clamp the first position change when the old size does not
+        // fit at the new origin, so set the position again after resizing.
         if sizeResult == .success {
             AXUIElementSetAttributeValue(
                 axWindow, kAXPositionAttribute as CFString, positionValue
             )
         }
 
-        return posResult == .success || sizeResult == .success
+        // A non-resizable window rejects the size but still moves, which
+        // counts as success.
+        return positionResult == .success || sizeResult == .success
     }
 }
 
@@ -133,80 +137,30 @@ private extension AXClient {
         return (value as! AXUIElement)
     }
 
-    func extractCGPoint(
-        _ element: AXUIElement, attribute: String
-    ) -> CGPoint? {
-        var value: AnyObject?
+    func extractAXValue<Value>(
+        _ element: AXUIElement, attribute: String,
+        type: AXValueType, initial: Value
+    ) -> Value? {
+        var rawValue: AnyObject?
         let result = AXUIElementCopyAttributeValue(
-            element, attribute as CFString, &value
+            element, attribute as CFString, &rawValue
         )
-        guard result == .success, let axValue = value else {
+        guard result == .success, let axValue = rawValue else {
             return nil
         }
-        var point = CGPoint.zero
-        guard AXValueGetValue(
-            axValue as! AXValue, .cgPoint, &point
-        ) else {
+        var decoded = initial
+        guard AXValueGetValue(axValue as! AXValue, type, &decoded) else {
             return nil
         }
-        return point
-    }
-
-    func extractCGSize(
-        _ element: AXUIElement, attribute: String
-    ) -> CGSize? {
-        var value: AnyObject?
-        let result = AXUIElementCopyAttributeValue(
-            element, attribute as CFString, &value
-        )
-        guard result == .success, let axValue = value else {
-            return nil
-        }
-        var size = CGSize.zero
-        guard AXValueGetValue(
-            axValue as! AXValue, .cgSize, &size
-        ) else {
-            return nil
-        }
-        return size
+        return decoded
     }
 
     func checkIsResizable(_ window: AXUIElement) -> Bool {
-        var settable: DarwinBoolean = false
+        var isSettable: DarwinBoolean = false
         let result = AXUIElementIsAttributeSettable(
-            window, kAXSizeAttribute as CFString, &settable
+            window, kAXSizeAttribute as CFString, &isSettable
         )
         guard result == .success else { return true }
-        return settable.boolValue
-    }
-
-    func findScreenId(containing point: CGPoint) -> UInt32 {
-        let primaryHeight = NSScreen.screens
-            .first { $0.frame.origin == .zero }?
-            .frame.height ?? 0
-        for screen in NSScreen.screens {
-            let visible = screen.visibleFrame
-            let axRect = NSRect(
-                x: visible.origin.x,
-                y: primaryHeight - visible.maxY,
-                width: visible.size.width,
-                height: visible.size.height
-            )
-            if axRect.contains(point) {
-                if let num = screen.deviceDescription[
-                    NSDeviceDescriptionKey("NSScreenNumber")
-                ] as? NSNumber {
-                    return num.uint32Value
-                }
-            }
-        }
-        // Fallback to main screen
-        if let main = NSScreen.main,
-           let num = main.deviceDescription[
-               NSDeviceDescriptionKey("NSScreenNumber")
-           ] as? NSNumber {
-            return num.uint32Value
-        }
-        return 0
+        return isSettable.boolValue
     }
 }

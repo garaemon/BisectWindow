@@ -36,7 +36,10 @@ final class UserDefaultsConfigRepositoryTests: XCTestCase {
     }
 
     func testLoadReturnsDefaultForCorruptedData() {
-        defaults.set(Data([0xFF, 0xFE]), forKey: "BisectWindow.AppConfig")
+        defaults.set(
+            Data([0xFF, 0xFE]),
+            forKey: UserDefaultsConfigRepository.configKey
+        )
         let config = repository.loadConfig()
         XCTAssertEqual(config, AppConfig.defaultConfig)
     }

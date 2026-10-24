@@ -1,15 +1,16 @@
 import Foundation
 
 final class UserDefaultsConfigRepository: ConfigRepositoryProtocol {
+    static let configKey = "BisectWindow.AppConfig"
+
     private let defaults: UserDefaults
-    private let configKey = "BisectWindow.AppConfig"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 
     func loadConfig() -> AppConfig {
-        guard let data = defaults.data(forKey: configKey) else {
+        guard let data = defaults.data(forKey: Self.configKey) else {
             return AppConfig.defaultConfig
         }
         let decoder = JSONDecoder()
@@ -26,6 +27,6 @@ final class UserDefaultsConfigRepository: ConfigRepositoryProtocol {
         guard let data = try? encoder.encode(config) else {
             return
         }
-        defaults.set(data, forKey: configKey)
+        defaults.set(data, forKey: Self.configKey)
     }
 }
