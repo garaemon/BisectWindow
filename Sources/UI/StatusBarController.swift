@@ -1,22 +1,43 @@
 import Cocoa
 
 /// Owns the menu-bar NSStatusItem and routes user-initiated actions
-/// (open settings, quit) back to the coordinator.
+/// (grant access, open settings, quit) back to the coordinator.
 final class StatusBarController {
     private let statusItem: NSStatusItem
     private let onOpenSettings: () -> Void
+    private let onGrantAccessibility: () -> Void
+    private let grantAccessibilityItem = NSMenuItem(
+        title: "Grant Accessibility Access…",
+        action: #selector(grantAccessibility),
+        keyEquivalent: ""
+    )
 
-    init(onOpenSettings: @escaping () -> Void) {
+    init(
+        onOpenSettings: @escaping () -> Void,
+        onGrantAccessibility: @escaping () -> Void
+    ) {
         self.statusItem = NSStatusBar.system.statusItem(
             withLength: NSStatusItem.variableLength
         )
         self.onOpenSettings = onOpenSettings
+        self.onGrantAccessibility = onGrantAccessibility
         configureButton()
         configureMenu()
     }
 
+    /// Shows or hides the menu item that reopens the permission prompt. The
+    /// item starts hidden and should be shown only while the permission is
+    /// missing.
+    func setGrantAccessibilityItemVisible(_ isVisible: Bool) {
+        grantAccessibilityItem.isHidden = !isVisible
+    }
+
     @objc private func openSettings() {
         onOpenSettings()
+    }
+
+    @objc private func grantAccessibility() {
+        onGrantAccessibility()
     }
 
     @objc private func quitApp() {
@@ -38,6 +59,10 @@ private extension StatusBarController {
 
     func configureMenu() {
         let menu = NSMenu()
+        grantAccessibilityItem.target = self
+        grantAccessibilityItem.isHidden = true
+        menu.addItem(grantAccessibilityItem)
+
         let settingsItem = NSMenuItem(
             title: "Settings…",
             action: #selector(openSettings),
