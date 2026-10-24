@@ -3,23 +3,12 @@ import XCTest
 
 final class BisectEngineTests: XCTestCase {
     let engine = BisectEngine()
-    let screen = ScreenInfo(
-        id: 1, frame: Rect(x: 0, y: 0, width: 1920, height: 1080)
-    )
-
-    func makeWindow(
-        frame: Rect, isResizable: Bool = true
-    ) -> WindowInfo {
-        WindowInfo(
-            id: 1, frame: frame, screenId: 1,
-            isResizable: isResizable
-        )
-    }
+    let screen = EngineFixtures.primaryScreen
 
     // MARK: - Half tiling
 
     func testHalfTileRight() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 100, y: 100, width: 800, height: 600)
         )
         let result = engine.computeFrame(
@@ -31,7 +20,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testHalfTileLeft() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 100, y: 100, width: 800, height: 600)
         )
         let result = engine.computeFrame(
@@ -43,7 +32,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testHalfTileUp() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 100, y: 100, width: 800, height: 600)
         )
         let result = engine.computeFrame(
@@ -55,7 +44,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testHalfTileDown() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 100, y: 100, width: 800, height: 600)
         )
         let result = engine.computeFrame(
@@ -69,7 +58,7 @@ final class BisectEngineTests: XCTestCase {
     // MARK: - Quarter tiling
 
     func testQuarterTileRightThenUp() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 960, y: 0, width: 960, height: 1080)
         )
         let result = engine.computeFrame(
@@ -81,7 +70,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testQuarterTileRightThenDown() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 960, y: 0, width: 960, height: 1080)
         )
         let result = engine.computeFrame(
@@ -93,7 +82,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testQuarterTileLeftThenUp() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 0, y: 0, width: 960, height: 1080)
         )
         let result = engine.computeFrame(
@@ -105,7 +94,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testQuarterTileLeftThenDown() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 0, y: 0, width: 960, height: 1080)
         )
         let result = engine.computeFrame(
@@ -117,7 +106,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testQuarterTileTopThenLeft() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 0, y: 0, width: 1920, height: 540)
         )
         let result = engine.computeFrame(
@@ -129,7 +118,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testQuarterTileTopThenRight() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 0, y: 0, width: 1920, height: 540)
         )
         let result = engine.computeFrame(
@@ -141,7 +130,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testQuarterTileBottomThenLeft() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 0, y: 540, width: 1920, height: 540)
         )
         let result = engine.computeFrame(
@@ -153,7 +142,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testQuarterTileBottomThenRight() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 0, y: 540, width: 1920, height: 540)
         )
         let result = engine.computeFrame(
@@ -168,7 +157,7 @@ final class BisectEngineTests: XCTestCase {
     // MARK: - Maximize
 
     func testMaximize() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 100, y: 100, width: 800, height: 600)
         )
         let result = engine.computeMaximize(
@@ -179,70 +168,10 @@ final class BisectEngineTests: XCTestCase {
         )
     }
 
-    // MARK: - Screen traversal
-
-    func testScreenTraversalRightToNextScreen() {
-        // Lands on the next screen's leftHalf so the window stays near
-        // the boundary it just crossed.
-        let screen2 = ScreenInfo(
-            id: 2,
-            frame: Rect(x: 1920, y: 0, width: 1920, height: 1080)
-        )
-        let window = makeWindow(
-            frame: Rect(x: 960, y: 0, width: 960, height: 1080)
-        )
-        let result = engine.computeFrame(
-            direction: .right, window: window,
-            screens: [screen, screen2]
-        )
-        XCTAssertEqual(
-            result,
-            .move(Rect(x: 1920, y: 0, width: 960, height: 1080))
-        )
-    }
-
-    func testScreenTraversalLeftToNextScreen() {
-        // Lands on the previous screen's rightHalf for the same reason.
-        let screen2 = ScreenInfo(
-            id: 2,
-            frame: Rect(x: 1920, y: 0, width: 1920, height: 1080)
-        )
-        let window = makeWindow(
-            frame: Rect(x: 1920, y: 0, width: 960, height: 1080)
-        )
-        let result = engine.computeFrame(
-            direction: .left, window: window,
-            screens: [screen, screen2]
-        )
-        XCTAssertEqual(
-            result, .move(Rect(x: 960, y: 0, width: 960, height: 1080))
-        )
-    }
-
-    func testScreenTraversalNoActionAtBoundary() {
-        let window = makeWindow(
-            frame: Rect(x: 960, y: 0, width: 960, height: 1080)
-        )
-        let result = engine.computeFrame(
-            direction: .right, window: window, screens: [screen]
-        )
-        XCTAssertEqual(result, .noAction)
-    }
-
-    func testScreenTraversalLeftNoActionAtBoundary() {
-        let window = makeWindow(
-            frame: Rect(x: 0, y: 0, width: 960, height: 1080)
-        )
-        let result = engine.computeFrame(
-            direction: .left, window: window, screens: [screen]
-        )
-        XCTAssertEqual(result, .noAction)
-    }
-
     // MARK: - Non-resizable windows
 
     func testNonResizableWindowMovesOnly() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 100, y: 100, width: 400, height: 300),
             isResizable: false
         )
@@ -255,7 +184,7 @@ final class BisectEngineTests: XCTestCase {
     }
 
     func testNonResizableWindowMaximize() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 100, y: 100, width: 400, height: 300),
             isResizable: false
         )
@@ -271,7 +200,7 @@ final class BisectEngineTests: XCTestCase {
 
     func testToleranceMatchingForHalfDetection() {
         // Window slightly off from perfect right-half position
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 963, y: 2, width: 957, height: 1078)
         )
         let result = engine.computeFrame(
@@ -303,7 +232,7 @@ final class BisectEngineTests: XCTestCase {
     // MARK: - Window off screen
 
     func testNoActionWhenWindowOffScreen() {
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 5000, y: 5000, width: 100, height: 100)
         )
         let result = engine.computeFrame(
@@ -316,7 +245,7 @@ final class BisectEngineTests: XCTestCase {
 
     func testQuarterDoesNotSubdivide() {
         // Window at top-right quarter, pressing right should snap to right-half
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 960, y: 0, width: 960, height: 540)
         )
         let result = engine.computeFrame(
@@ -324,90 +253,6 @@ final class BisectEngineTests: XCTestCase {
         )
         XCTAssertEqual(
             result, .move(Rect(x: 960, y: 0, width: 960, height: 1080))
-        )
-    }
-
-    // MARK: - Edge-touch traversal (apps with minimum width)
-
-    func testTraversalRightWhenWindowWiderThanHalf() {
-        // App minimum width pushes the window past the exact rightHalf
-        // size, but it still hugs the right edge and spans vertically.
-        // Lands on screen2's leftHalf to stay near the crossed boundary.
-        let screen2 = ScreenInfo(
-            id: 2,
-            frame: Rect(x: 1920, y: 0, width: 1680, height: 1050)
-        )
-        let window = makeWindow(
-            frame: Rect(x: 860, y: 0, width: 1060, height: 1080)
-        )
-        let result = engine.computeFrame(
-            direction: .right, window: window,
-            screens: [screen, screen2]
-        )
-        XCTAssertEqual(
-            result,
-            .move(Rect(x: 1920, y: 0, width: 840, height: 1050))
-        )
-    }
-
-    func testTraversalLeftWhenWindowWiderThanHalf() {
-        // Window sits at the left edge of the right screen but is wider
-        // than that screen's leftHalf; pressing left should still cross
-        // back to the left screen and land on its rightHalf.
-        let screen2 = ScreenInfo(
-            id: 2,
-            frame: Rect(x: 1920, y: 0, width: 1680, height: 1050)
-        )
-        let window = makeWindow(
-            frame: Rect(x: 1920, y: 0, width: 940, height: 1050)
-        )
-        let result = engine.computeFrame(
-            direction: .left, window: window,
-            screens: [screen, screen2]
-        )
-        XCTAssertEqual(
-            result, .move(Rect(x: 960, y: 0, width: 960, height: 1080))
-        )
-    }
-
-    func testNoTraversalFromQuarterWindowAtRightEdge() {
-        // topRightQuarter touches the right edge but does not span the
-        // full height, so pressing right should fall back to half-snap
-        // rather than crossing to the neighbour screen.
-        let screen2 = ScreenInfo(
-            id: 2,
-            frame: Rect(x: 1920, y: 0, width: 1920, height: 1080)
-        )
-        let window = makeWindow(
-            frame: Rect(x: 960, y: 0, width: 960, height: 540)
-        )
-        let result = engine.computeFrame(
-            direction: .right, window: window,
-            screens: [screen, screen2]
-        )
-        XCTAssertEqual(
-            result, .move(Rect(x: 960, y: 0, width: 960, height: 1080))
-        )
-    }
-
-    func testNoTraversalForMaximizedWindow() {
-        // Maximized window touches both edges; pressing left should not
-        // sneak it onto the previous screen.
-        let screen2 = ScreenInfo(
-            id: 2,
-            frame: Rect(x: 1920, y: 0, width: 1920, height: 1080)
-        )
-        let window = makeWindow(
-            frame: Rect(x: 1920, y: 0, width: 1920, height: 1080)
-        )
-        let result = engine.computeFrame(
-            direction: .left, window: window,
-            screens: [screen, screen2]
-        )
-        // Maximized window's midX == screen.midX, so traversal does
-        // not trigger; it falls through to leftHalf snap on screen2.
-        XCTAssertEqual(
-            result, .move(Rect(x: 1920, y: 0, width: 960, height: 1080))
         )
     }
 }

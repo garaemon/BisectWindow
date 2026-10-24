@@ -59,5 +59,6 @@ Sources/
   Infrastructure/ -- OS-level implementations (Accessibility, HotKey, Logging, Persistence)
   UI/             -- SwiftUI views (Settings, Overlay)
 Tests/
-  LogicTests/     -- Unit tests for Domain layer
+  LogicTests/     -- Unit tests that need no Accessibility permission
+    Support/      -- Shared fixtures
 ```

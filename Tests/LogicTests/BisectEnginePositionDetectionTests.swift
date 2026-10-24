@@ -5,14 +5,8 @@ import XCTest
 /// quarter-tiling / half-snap behaviour driven by `tolerance`.
 final class BisectEnginePositionDetectionTests: XCTestCase {
     private let engine = BisectEngine(tolerance: 10.0)
-    private let screen = Rect(x: 0, y: 0, width: 1920, height: 1080)
-    private let screenInfo = ScreenInfo(
-        id: 1, frame: Rect(x: 0, y: 0, width: 1920, height: 1080)
-    )
-
-    private func makeWindow(frame: Rect) -> WindowInfo {
-        WindowInfo(id: 1, frame: frame, screenId: 1, isResizable: true)
-    }
+    private let screenInfo = EngineFixtures.primaryScreen
+    private var screen: Rect { screenInfo.frame }
 
     // MARK: - Exact half / quarter detection
 
@@ -104,10 +98,10 @@ final class BisectEnginePositionDetectionTests: XCTestCase {
         XCTAssertEqual(position, .rightHalf)
     }
 
-    func testQuarterTilingFiresOnTolerantLeftHalf() {
+    func testQuarterTilingFiresOnTolerantRightHalf() {
         // Window is rightHalf within tolerance, pressing Up should jump
         // to topRightQuarter rather than re-snapping to topHalf.
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 965, y: 3, width: 955, height: 1077)
         )
         let result = engine.computeFrame(
@@ -121,7 +115,7 @@ final class BisectEnginePositionDetectionTests: XCTestCase {
     func testQuarterTilingDoesNotFireBeyondTolerance() {
         // Width 100px too narrow → not rightHalf → Up falls through
         // to topHalf snap.
-        let window = makeWindow(
+        let window = EngineFixtures.makeWindow(
             frame: Rect(x: 1060, y: 0, width: 860, height: 1080)
         )
         let result = engine.computeFrame(
@@ -183,7 +177,7 @@ final class BisectEnginePositionDetectionTests: XCTestCase {
 
     func testTopHalfPressingUpFallsThroughToTopHalfSnap() {
         // (.topHalf, .up) is not a quarter combination → halfsnap to topHalf.
-        let window = makeWindow(frame: screen.topHalf())
+        let window = EngineFixtures.makeWindow(frame: screen.topHalf())
         let result = engine.computeFrame(
             direction: .up, window: window, screens: [screenInfo]
         )
@@ -191,7 +185,7 @@ final class BisectEnginePositionDetectionTests: XCTestCase {
     }
 
     func testBottomHalfPressingDownFallsThroughToBottomHalfSnap() {
-        let window = makeWindow(frame: screen.bottomHalf())
+        let window = EngineFixtures.makeWindow(frame: screen.bottomHalf())
         let result = engine.computeFrame(
             direction: .down, window: window, screens: [screenInfo]
         )
