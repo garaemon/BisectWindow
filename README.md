@@ -40,6 +40,14 @@ make build
 make test
 ```
 
+## Logs
+
+Debug builds write to the unified log. Stream them with:
+
+```bash
+make logs
+```
+
 ## Project Structure
 
 ```
@@ -48,7 +56,7 @@ Sources/
   Domain/         -- Core logic (pure Swift, no OS dependencies)
     Models/       -- Data models (Rect, WindowInfo, AppConfig)
   Interface/      -- Protocol definitions
-  Infrastructure/ -- OS-level implementations (Accessibility, Persistence)
+  Infrastructure/ -- OS-level implementations (Accessibility, HotKey, Logging, Persistence)
   UI/             -- SwiftUI views (Settings, Overlay)
 Tests/
   LogicTests/     -- Unit tests for Domain layer

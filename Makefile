@@ -1,7 +1,6 @@
 .PHONY: generate build test run logs
 
 APP_NAME := BisectWindow
-LOG_FILE := /tmp/BisectWindow.log
 
 generate:
 	mise exec -- xcodegen generate
@@ -32,5 +31,5 @@ run: build
 	open "$$APP_PATH/$(APP_NAME).app"
 
 logs:
-	@touch $(LOG_FILE)
-	tail -f $(LOG_FILE)
+	log stream --level debug --style compact \
+		--predicate 'subsystem == "com.garaemon.BisectWindow"'
