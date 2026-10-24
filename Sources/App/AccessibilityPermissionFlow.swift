@@ -26,18 +26,26 @@ final class AccessibilityPermissionFlow {
         self.schedulePoll = schedulePoll
         prompt.onOpenSettings = { [weak self] in
             // requestTrust() adds the app to the Accessibility list, so the
-            // user finds a switch to turn on when System Settings opens.
+            // user finds a switch to turn on when System Settings opens. The
+            // call also raises the system dialog on top of System Settings.
             self?.permission.requestTrust()
             self?.permission.openSystemSettings()
         }
     }
 
-    /// True between `begin` and the grant.
+    deinit {
+        cancelPoll?()
+    }
+
+    /// True after `begin` until the grant or `cancel()`.
     var isAwaitingPermission: Bool { onGranted != nil }
 
     /// Calls `onGranted` once the permission is granted, immediately when it
     /// already is.
     func begin(onGranted: @escaping () -> Void) {
+        if isAwaitingPermission {
+            cancel()
+        }
         if permission.isTrusted() {
             onGranted()
             return
@@ -56,10 +64,13 @@ final class AccessibilityPermissionFlow {
         prompt.showPrompt()
     }
 
+    /// Stops waiting: ends polling, hides the prompt, and drops the grant
+    /// handler. Safe to call when nothing is pending.
     func cancel() {
         cancelPoll?()
         cancelPoll = nil
         onGranted = nil
+        prompt.hidePrompt()
     }
 
     private func checkPermission() {
@@ -68,15 +79,19 @@ final class AccessibilityPermissionFlow {
         }
         debugLog("[AccessibilityPermissionFlow] permission granted")
         cancel()
-        prompt.hidePrompt()
         grantHandler()
     }
 
+    /// Seconds between two permission checks.
+    static let pollInterval: TimeInterval = 1.0
+
+    /// Calls `tick` every `pollInterval` on the current run loop, so call it
+    /// from the main thread. Returns a closure that stops the timer.
     static func scheduleTimerPoll(
         _ tick: @escaping () -> Void
     ) -> () -> Void {
         let timer = Timer.scheduledTimer(
-            withTimeInterval: 1.0, repeats: true
+            withTimeInterval: pollInterval, repeats: true
         ) { _ in tick() }
         return { timer.invalidate() }
     }

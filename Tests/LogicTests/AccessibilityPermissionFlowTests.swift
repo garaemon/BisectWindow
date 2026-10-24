@@ -45,6 +45,24 @@ final class AccessibilityPermissionFlowTests: XCTestCase {
         XCTAssertEqual(prompt.events, [])
     }
 
+    func testAlreadyTrustedSchedulesNoPoll() {
+        permission.isTrustedValue = true
+        let flow = makeFlow()
+
+        beginFlow(flow)
+
+        XCTAssertEqual(poller.subscriptionCount, 0)
+    }
+
+    func testReleasingFlowStopsPolling() {
+        var flow: AccessibilityPermissionFlow? = makeFlow()
+        beginFlow(flow!)
+
+        flow = nil
+
+        XCTAssertTrue(poller.isCancelled(subscriptionIndex: 0))
+    }
+
     func testUntrustedShowsPrompt() {
         let flow = makeFlow()
 
@@ -105,7 +123,7 @@ final class AccessibilityPermissionFlowTests: XCTestCase {
 
         poller.tick()
 
-        XCTAssertTrue(poller.isCancelled)
+        XCTAssertTrue(poller.isCancelled(subscriptionIndex: 0))
     }
 
     func testPollAfterGrantEndsAwaiting() {
@@ -136,7 +154,7 @@ final class AccessibilityPermissionFlowTests: XCTestCase {
         XCTAssertEqual(prompt.events, [.shown, .shown])
     }
 
-    func testShowPromptAfterGrantDoesNothing() {
+    func testShowPromptWhenAlreadyTrustedDoesNothing() {
         permission.isTrustedValue = true
         let flow = makeFlow()
         beginFlow(flow)
@@ -146,13 +164,83 @@ final class AccessibilityPermissionFlowTests: XCTestCase {
         XCTAssertEqual(prompt.events, [])
     }
 
+    func testShowPromptAfterGrantDoesNothing() {
+        let flow = makeFlow()
+        beginFlow(flow)
+        permission.isTrustedValue = true
+        poller.tick()
+
+        flow.showPrompt()
+
+        XCTAssertEqual(prompt.events, [.shown, .hidden])
+    }
+
+    func testBeginTwiceCancelsFirstPoll() {
+        let flow = makeFlow()
+        beginFlow(flow)
+
+        beginFlow(flow)
+
+        XCTAssertTrue(poller.isCancelled(subscriptionIndex: 0))
+    }
+
+    func testBeginTwiceKeepsSecondPollRunning() {
+        let flow = makeFlow()
+        beginFlow(flow)
+
+        beginFlow(flow)
+
+        XCTAssertFalse(poller.isCancelled(subscriptionIndex: 1))
+    }
+
+    func testBeginTwiceGrantsOnceOnPoll() {
+        let flow = makeFlow()
+        beginFlow(flow)
+        beginFlow(flow)
+        permission.isTrustedValue = true
+
+        poller.tick()
+
+        XCTAssertEqual(grantCount, 1)
+    }
+
+    func testBeginAfterGrantWhileAwaitingDropsFirstHandler() {
+        let flow = makeFlow()
+        beginFlow(flow)
+        permission.isTrustedValue = true
+        beginFlow(flow)
+
+        poller.tick()
+
+        XCTAssertEqual(grantCount, 1)
+    }
+
+    func testBeginAfterGrantWhileAwaitingHidesPrompt() {
+        let flow = makeFlow()
+        beginFlow(flow)
+        permission.isTrustedValue = true
+
+        beginFlow(flow)
+
+        XCTAssertEqual(prompt.events, [.shown, .hidden])
+    }
+
+    func testCancelHidesPrompt() {
+        let flow = makeFlow()
+        beginFlow(flow)
+
+        flow.cancel()
+
+        XCTAssertEqual(prompt.events, [.shown, .hidden])
+    }
+
     func testCancelStopsPolling() {
         let flow = makeFlow()
         beginFlow(flow)
 
         flow.cancel()
 
-        XCTAssertTrue(poller.isCancelled)
+        XCTAssertTrue(poller.isCancelled(subscriptionIndex: 0))
     }
 
     func testPollAfterCancelDoesNotGrant() {
@@ -195,17 +283,35 @@ private final class RecordingPrompt: PermissionPromptProtocol {
 }
 
 /// Stands in for the one-second timer so tests decide when a poll happens.
+/// Each `schedule` call is a separate subscription with its own state.
 private final class ManualPoller {
-    private var scheduledTick: (() -> Void)?
-    private(set) var isCancelled = false
+    private final class Subscription {
+        let tick: () -> Void
+        var isCancelled = false
 
-    func schedule(_ tick: @escaping () -> Void) -> () -> Void {
-        scheduledTick = tick
-        return { [unowned self] in self.isCancelled = true }
+        init(tick: @escaping () -> Void) {
+            self.tick = tick
+        }
     }
 
+    private var subscriptions: [Subscription] = []
+
+    var subscriptionCount: Int { subscriptions.count }
+
+    func schedule(_ tick: @escaping () -> Void) -> () -> Void {
+        let subscription = Subscription(tick: tick)
+        subscriptions.append(subscription)
+        return { subscription.isCancelled = true }
+    }
+
+    func isCancelled(subscriptionIndex: Int) -> Bool {
+        subscriptions[subscriptionIndex].isCancelled
+    }
+
+    /// Fires every subscription that is still active.
     func tick() {
-        guard !isCancelled else { return }
-        scheduledTick?()
+        for subscription in subscriptions where !subscription.isCancelled {
+            subscription.tick()
+        }
     }
 }
