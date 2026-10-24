@@ -44,17 +44,20 @@ final class SettingsViewModelTests: XCTestCase {
         )
     }
 
-    func testInitialLoadDoesNotNotify() {
-        var notificationCount = 0
-        let viewModel = SettingsViewModel(configRepository: repository)
-        viewModel.onConfigChanged = { notificationCount += 1 }
-        XCTAssertEqual(notificationCount, 0)
+    func testInitialLoadDoesNotPersist() {
+        _ = SettingsViewModel(configRepository: repository)
+
+        XCTAssertEqual(repository.saveCount, 0)
     }
 }
 
 private final class InMemoryConfigRepository: ConfigRepositoryProtocol {
     var storedConfig: AppConfig = .defaultConfig
+    private(set) var saveCount = 0
 
     func loadConfig() -> AppConfig { storedConfig }
-    func saveConfig(_ config: AppConfig) { storedConfig = config }
+    func saveConfig(_ config: AppConfig) {
+        storedConfig = config
+        saveCount += 1
+    }
 }

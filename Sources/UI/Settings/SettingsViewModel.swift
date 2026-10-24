@@ -14,7 +14,6 @@ final class SettingsViewModel: ObservableObject {
     var onConfigChanged: (() -> Void)?
 
     private let configRepository: ConfigRepositoryProtocol
-    private var isLoading = true
 
     init(configRepository: ConfigRepositoryProtocol) {
         self.configRepository = configRepository
@@ -23,11 +22,9 @@ final class SettingsViewModel: ObservableObject {
         self.selectedPrefix = PrefixOption.match(
             modifiers: config.prefixKeyModifiers
         )
-        self.isLoading = false
     }
 
     private func persist() {
-        guard !isLoading else { return }
         let config = AppConfig(
             prefixKeyModifiers: selectedPrefix.modifiers,
             isOverlayEnabled: isOverlayEnabled

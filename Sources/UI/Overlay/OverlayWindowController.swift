@@ -41,7 +41,9 @@ private extension OverlayWindowController {
             .canJoinAllSpaces, .stationary, .fullScreenAuxiliary
         ]
 
-        let hostingView = NSHostingView(rootView: OverlayDotView())
+        let hostingView = NSHostingView(
+            rootView: OverlayDotView(panelSize: Self.panelSize)
+        )
         hostingView.frame = initialRect
         newPanel.contentView = hostingView
         return newPanel
@@ -59,11 +61,13 @@ private extension OverlayWindowController {
 }
 
 private struct OverlayDotView: View {
+    let panelSize: NSSize
+
     var body: some View {
         Circle()
             .fill(Color.accentColor.opacity(0.85))
-            .frame(width: 16, height: 16)
+            .frame(width: panelSize.width / 2, height: panelSize.height / 2)
             .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 1)
-            .frame(width: 32, height: 32)
+            .frame(width: panelSize.width, height: panelSize.height)
     }
 }

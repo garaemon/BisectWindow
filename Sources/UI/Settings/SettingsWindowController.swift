@@ -12,15 +12,15 @@ final class SettingsWindowController {
     }
 
     func showSettings() {
-        let window = existingOrNewWindow()
-        window.makeKeyAndOrderFront(nil)
+        let settingsWindow = fetchOrMakeWindow()
+        settingsWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 }
 
 private extension SettingsWindowController {
-    func existingOrNewWindow() -> NSWindow {
-        if let window = window { return window }
+    func fetchOrMakeWindow() -> NSWindow {
+        if let existingWindow = window { return existingWindow }
         let newWindow = makeWindow()
         window = newWindow
         return newWindow
