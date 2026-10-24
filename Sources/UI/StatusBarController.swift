@@ -25,8 +25,9 @@ final class StatusBarController {
         configureMenu()
     }
 
-    /// Shows the menu item that reopens the permission prompt. Only useful
-    /// while the Accessibility permission is missing.
+    /// Shows or hides the menu item that reopens the permission prompt. The
+    /// item starts hidden and should be shown only while the permission is
+    /// missing.
     func setGrantAccessibilityItemVisible(_ isVisible: Bool) {
         grantAccessibilityItem.isHidden = !isVisible
     }
