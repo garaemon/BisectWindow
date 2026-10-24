@@ -1,26 +1,36 @@
 import Cocoa
 
-enum HotKeyAction {
+enum HotKeyAction: Equatable {
     case directionPressed(Direction)
     case maximizePressed
     case prefixBegan
     case prefixEnded
 }
 
+/// Watches for the prefix chord and the follow-up keys with a CGEvent tap.
+///
+/// - A tap is used instead of `NSEvent.addGlobalMonitorForEvents` because
+///   only a tap can swallow the arrow key before the frontmost app sees it.
+/// - Creating the tap requires the Accessibility permission. `start()` logs
+///   and returns when the permission is missing.
+/// - The tap runs on the main run loop, so `onAction` fires on the main
+///   thread.
 final class HotKeyManager {
     var onAction: ((HotKeyAction) -> Void)?
 
+    // fileprivate so the C callback can re-enable the tap after macOS
+    // disables it for a slow callback or secure input.
     fileprivate var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var prefixModifiers: UInt
+    private var mapper: HotKeyMapper
     private var isPrefixActive = false
 
     init(prefixModifiers: UInt = AppConfig.defaultPrefixKeyModifiers) {
-        self.prefixModifiers = prefixModifiers
+        self.mapper = HotKeyMapper(prefixModifiers: prefixModifiers)
     }
 
     func start() {
-        debugLog("[HotKeyManager] starting with prefixModifiers=0x\(String(prefixModifiers, radix: 16))")
+        debugLog("[HotKeyManager] starting with prefixModifiers=0x\(String(mapper.prefixModifiers, radix: 16))")
         let eventMask: CGEventMask =
             (1 << CGEventType.flagsChanged.rawValue)
             | (1 << CGEventType.keyDown.rawValue)
@@ -64,12 +74,12 @@ final class HotKeyManager {
     }
 
     func updatePrefixModifiers(_ modifiers: UInt) {
-        prefixModifiers = modifiers
+        mapper.prefixModifiers = modifiers
     }
 
-    // MARK: - Event handling
-
-    fileprivate func handleEvent(
+    /// Returns the event to pass on to the frontmost app, or nil to swallow
+    /// it. Called from the tap callback; internal so tests can feed events.
+    func handleEvent(
         type: CGEventType, event: CGEvent
     ) -> Unmanaged<CGEvent>? {
         switch type {
@@ -92,63 +102,51 @@ private extension HotKeyManager {
         let flags = event.flags
         let activeFlags = extractModifierFlags(flags)
 
-        if matchesPrefixModifiers(activeFlags) {
-            if !isPrefixActive {
-                debugLog("[HotKeyManager] prefix ACTIVE (flags=0x\(String(activeFlags, radix: 16)))")
-                isPrefixActive = true
-                onAction?(.prefixBegan)
-            }
-        } else {
-            if isPrefixActive {
-                debugLog("[HotKeyManager] prefix RELEASED")
-                isPrefixActive = false
-                onAction?(.prefixEnded)
-            }
-        }
+        syncPrefixState(isPrefixHeld: mapper.matchesPrefix(activeFlags))
         return Unmanaged.passUnretained(event)
+    }
+
+    func syncPrefixState(isPrefixHeld: Bool) {
+        guard isPrefixHeld != isPrefixActive else { return }
+        isPrefixActive = isPrefixHeld
+        debugLog("[HotKeyManager] prefix active: \(isPrefixHeld)")
+        onAction?(isPrefixHeld ? .prefixBegan : .prefixEnded)
     }
 
     func handleKeyDown(
         event: CGEvent
     ) -> Unmanaged<CGEvent>? {
+        // macOS drops flagsChanged events while the tap is disabled, so the
+        // key event's own flags are the source of truth for the prefix.
+        let keyEventFlags = extractModifierFlags(event.flags)
+        syncPrefixState(isPrefixHeld: mapper.matchesPrefix(keyEventFlags))
         guard isPrefixActive else {
             return Unmanaged.passUnretained(event)
         }
 
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        debugLog("[HotKeyManager] keyDown while prefix active: keyCode=\(keyCode)")
-        guard let action = mapKeyCodeToAction(keyCode) else {
-            debugLog("[HotKeyManager] keyCode \(keyCode) not mapped, passing through")
+        guard let action = mapper.mapKeyCode(keyCode) else {
             return Unmanaged.passUnretained(event)
+        }
+
+        // Swallow auto-repeat so holding an arrow key fires one action.
+        // Returning nil also keeps the repeats away from the frontmost app.
+        let isAutorepeat =
+            event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        if isAutorepeat {
+            return nil
         }
 
         debugLog("[HotKeyManager] dispatching action: \(action)")
         onAction?(action)
-        // Consume the event so it doesn't propagate
         return nil
     }
 
     func extractModifierFlags(
         _ flags: CGEventFlags
     ) -> UInt {
-        // Extract only modifier key bits
         let modifierMask: UInt = NSEvent.ModifierFlags.deviceIndependentFlagsMask.rawValue
         return UInt(flags.rawValue) & modifierMask
-    }
-
-    func matchesPrefixModifiers(_ activeFlags: UInt) -> Bool {
-        return (activeFlags & prefixModifiers) == prefixModifiers
-    }
-
-    func mapKeyCodeToAction(_ keyCode: Int64) -> HotKeyAction? {
-        switch keyCode {
-        case 123: return .directionPressed(.left)   // Left arrow
-        case 124: return .directionPressed(.right)  // Right arrow
-        case 126: return .directionPressed(.up)     // Up arrow
-        case 125: return .directionPressed(.down)   // Down arrow
-        case 3:   return .maximizePressed            // F key
-        default:  return nil
-        }
     }
 }
 
@@ -160,7 +158,6 @@ private func hotKeyCallback(
     event: CGEvent,
     userInfo: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-    // Re-enable tap if disabled by system timeout
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         if let userInfo = userInfo {
             let manager = Unmanaged<HotKeyManager>.fromOpaque(
