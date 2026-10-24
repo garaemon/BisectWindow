@@ -18,3 +18,18 @@ protocol OverlayProtocol {
     func showOverlay()
     func hideOverlay()
 }
+
+protocol AccessibilityPermissionProtocol {
+    /// Returns whether the app may use the Accessibility API. Never shows UI.
+    func isTrusted() -> Bool
+    /// Adds the app to the Accessibility list in System Settings and shows
+    /// the system permission dialog.
+    func requestTrust()
+    func openSystemSettings()
+}
+
+protocol PermissionPromptProtocol: AnyObject {
+    var onOpenSettings: (() -> Void)? { get set }
+    func showPrompt()
+    func hidePrompt()
+}

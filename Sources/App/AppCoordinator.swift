@@ -4,7 +4,8 @@ import Cocoa
 /// overlay, and the settings UI together.
 ///
 /// - `start()` installs the status bar item and starts the tap once the
-///   Accessibility permission is granted, polling every second until then.
+///   Accessibility permission is granted. AccessibilityPermissionFlow
+///   guides the user until then.
 /// - Holding the prefix moves `state` to `.pendingInput` and shows the
 ///   overlay. Releasing the prefix returns `state` to `.idle`.
 /// - All callbacks arrive on the main thread.
@@ -15,25 +16,31 @@ final class AppCoordinator {
     private let configRepository: ConfigRepositoryProtocol
     private let overlay: OverlayProtocol
     private let hotKeyManager: HotKeyManager
+    private let permissionFlow: AccessibilityPermissionFlow
     private let settingsWindowController: SettingsWindowController
     private var statusBarController: StatusBarController?
 
     private var state: AppState = .idle
     private var isOverlayEnabled: Bool
-    private var accessibilityPollTimer: Timer?
 
     init(
         systemState: SystemStateProtocol = AXClient(),
         windowAction: WindowActionProtocol = AXClient(),
         configRepository: ConfigRepositoryProtocol =
             UserDefaultsConfigRepository(),
-        overlay: OverlayProtocol = OverlayWindowController()
+        overlay: OverlayProtocol = OverlayWindowController(),
+        permissionFlow: AccessibilityPermissionFlow =
+            AccessibilityPermissionFlow(
+                permission: AccessibilityPermissionClient(),
+                prompt: PermissionPromptWindowController()
+            )
     ) {
         let config = configRepository.loadConfig()
         self.systemState = systemState
         self.windowAction = windowAction
         self.configRepository = configRepository
         self.overlay = overlay
+        self.permissionFlow = permissionFlow
         self.isOverlayEnabled = config.isOverlayEnabled
         let settingsViewModel = SettingsViewModel(
             configRepository: configRepository
@@ -51,20 +58,24 @@ final class AppCoordinator {
 
     func start() {
         installStatusBar()
-        let isTrusted = AccessibilityChecker.requestAccessibilityIfNeeded()
-        debugLog("[AppCoordinator] accessibility trusted: \(isTrusted)")
-        if isTrusted {
-            startHotKeyManager()
-        } else {
-            debugLog("[AppCoordinator] waiting for accessibility permission...")
-            pollForAccessibility()
+        permissionFlow.begin { [weak self] in
+            self?.statusBarController?.setGrantAccessibilityItemVisible(false)
+            self?.startHotKeyManager()
         }
+        statusBarController?.setGrantAccessibilityItemVisible(
+            permissionFlow.isAwaitingPermission
+        )
     }
 
     private func installStatusBar() {
-        statusBarController = StatusBarController { [weak self] in
-            self?.settingsWindowController.showSettings()
-        }
+        statusBarController = StatusBarController(
+            onOpenSettings: { [weak self] in
+                self?.settingsWindowController.showSettings()
+            },
+            onGrantAccessibility: { [weak self] in
+                self?.permissionFlow.showPrompt()
+            }
+        )
     }
 
     private func startHotKeyManager() {
@@ -76,22 +87,8 @@ final class AppCoordinator {
         debugLog("[AppCoordinator] hotKeyManager started")
     }
 
-    private func pollForAccessibility() {
-        accessibilityPollTimer = Timer.scheduledTimer(
-            withTimeInterval: 1.0, repeats: true
-        ) { [weak self] timer in
-            if AccessibilityChecker.isAccessibilityTrusted() {
-                debugLog("[AppCoordinator] accessibility now granted!")
-                timer.invalidate()
-                self?.accessibilityPollTimer = nil
-                self?.startHotKeyManager()
-            }
-        }
-    }
-
     func stop() {
-        accessibilityPollTimer?.invalidate()
-        accessibilityPollTimer = nil
+        permissionFlow.cancel()
         hotKeyManager.stop()
         overlay.hideOverlay()
         state = .idle
