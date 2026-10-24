@@ -15,11 +15,21 @@ targets:
       path: Sources/Info.plist
       properties:
         LSUIElement: true
+    configFiles:
+      Debug: Configs/Signing.xcconfig
+      Release: Configs/Signing.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.garaemon.BisectWindow
         CODE_SIGN_ENTITLEMENTS: BisectWindow.entitlements
+        CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "5.10"
+      configs:
+        Debug:
+          # Ad-hoc signatures carry no team identity, so TCC ties the
+          # Accessibility grant to the per-build cdhash and every rebuild
+          # would need a fresh grant.
+          "CODE_SIGN_IDENTITY[sdk=macosx*]": "Apple Development"
 
   BisectWindowTests:
     type: bundle.unit-test

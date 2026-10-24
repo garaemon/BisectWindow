@@ -1,6 +1,7 @@
 struct WindowInfo: Equatable {
-    let id: Int
+    /// Process ID of the app that owns the window. A move re-resolves that
+    /// app's focused window from this pid.
+    let ownerProcessId: Int
     let frame: Rect
-    let screenId: UInt32
     let isResizable: Bool
 }

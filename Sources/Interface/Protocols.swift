@@ -1,10 +1,12 @@
 protocol SystemStateProtocol {
     func fetchFocusedWindow() -> WindowInfo?
-    func listScreens() -> [Rect]
+    func listScreens() -> [ScreenInfo]
 }
 
 protocol WindowActionProtocol {
-    func moveAndResize(windowId: Int, to frame: Rect) -> Bool
+    func moveAndResizeFocusedWindow(
+        ownerProcessId: Int, to frame: Rect
+    ) -> Bool
 }
 
 protocol ConfigRepositoryProtocol {
