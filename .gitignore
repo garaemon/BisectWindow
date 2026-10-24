@@ -9,3 +9,5 @@ xcuserdata/
 Sources/Info.plist
 Tests/Info.plist
 Configs/Signing.local.xcconfig
+/REVIEW.md
+/REVIEW.html
