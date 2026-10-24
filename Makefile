@@ -13,12 +13,14 @@ build:
 		-destination 'platform=macOS' \
 		-allowProvisioningUpdates
 
+# Tests build unsigned so fresh checkouts and CI need no Apple ID session.
+# project.yml selects Automatic signing, so the style and team are cleared
+# too; otherwise xcodebuild still tries to resolve a provisioning profile.
 test:
 	xcodebuild test \
 		-project BisectWindow.xcodeproj \
 		-scheme BisectWindow \
 		-destination 'platform=macOS' \
-		CODE_SIGN_IDENTITY=- \
 		CODE_SIGN_STYLE=Manual \
 		DEVELOPMENT_TEAM= \
 		CODE_SIGNING_REQUIRED=NO \

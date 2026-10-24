@@ -14,9 +14,16 @@ A keyboard-driven window manager for macOS. Inspired by Emacs keybindings, it en
 # Install tools (XcodeGen)
 mise install
 
+# Set your Apple development team for code signing
+cp Configs/Signing.local.xcconfig.example Configs/Signing.local.xcconfig
+# Then replace YOUR_TEAM_ID in Configs/Signing.local.xcconfig
+
 # Generate Xcode project
 make generate
 ```
+
+Debug builds are signed with your Apple Development certificate so that the
+Accessibility permission survives rebuilds. `make test` needs no team ID.
 
 ## Build
 
