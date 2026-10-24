@@ -1,64 +1,164 @@
 # BisectWindow
 
-A keyboard-driven window manager for macOS. Inspired by Emacs keybindings, it enables context-aware window tiling and screen traversal without leaving the keyboard.
+BisectWindow is a keyboard-driven window manager for macOS. You hold a prefix
+chord and press arrow keys, and BisectWindow tiles the focused window into
+halves and quarters or moves it to the neighbouring screen. The next action
+depends on where the window already is, so short key sequences build complex
+layouts.
+
+![App icon](Sources/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@1x.png)
+
+## Features
+
+- Tile the focused window to the left, right, top, or bottom half.
+- Split a half into a quarter with a second, perpendicular arrow key.
+- Move a window to the neighbouring screen with a second arrow key in the
+  same direction.
+- Maximize a window to the screen area outside the menu bar and the Dock.
+- Show a small indicator while the prefix chord is held.
 
 ## Requirements
 
 - macOS 14.0 (Sonoma) or later
+- The Accessibility permission, which macOS requires for moving the windows
+  of other apps
+
+## Install
+
+BisectWindow has no signed release yet. Build it from source as described in
+[Development](#development), then start it:
+
+```bash
+make run
+```
+
+BisectWindow runs in the menu bar and shows no Dock icon.
+
+## Grant Accessibility access
+
+BisectWindow asks for the Accessibility permission on its first launch. To
+grant the permission:
+
+1. Click **Open System Settings** in the BisectWindow window.
+2. Turn on **BisectWindow** in **Privacy & Security > Accessibility**.
+3. Return to your work. BisectWindow detects the grant within a second and
+   starts listening for keys.
+
+If you close the window before you grant access, choose
+**Grant Accessibility Access…** from the menu bar icon to open the window
+again.
+
+## Usage
+
+Hold the prefix chord, which is **Cmd + Ctrl** by default, and press one of
+these keys. BisectWindow checks the rows from top to bottom and applies the
+first row that matches:
+
+| Key | Window state | Result |
+| --- | --- | --- |
+| Right | Against the right edge, full height | Move to the left half of the screen on the right |
+| Left | Against the left edge, full height | Move to the right half of the screen on the left |
+| Up / Down | Left or right half | Tile to the quarter in that corner |
+| Left / Right | Top or bottom half | Tile to the quarter in that corner |
+| Left / Right / Up / Down | Any other state | Tile to that half of the screen |
+| F | Any | Maximize |
+
+BisectWindow follows these rules:
+
+- A window counts as a half or a quarter when its origin and its size are
+  each within 10 points of the exact values.
+- A window is against an edge, or full height, when it sits on the side of
+  the key and its edges are within 50 points of the screen edges. The
+  looser margin covers apps whose minimum width stops a half snap short.
+- A screen move picks the screen that is geometrically adjacent. At the last
+  screen in a direction, the key does nothing.
+- Up and Down never move a window to another screen.
+- A quarter never splits further. An arrow key on a quarter tiles to a half.
+- A window that cannot be resized keeps its size and moves to the centre of
+  the target area.
+
+## Settings
+
+Choose **Settings…** from the menu bar icon. The settings window offers these
+options:
+
+- **General:** Show or hide the indicator in the bottom-right corner of the
+  main screen.
+- **Key Bindings:** Pick the prefix chord from Cmd + Ctrl, Cmd + Option,
+  Ctrl + Option, or Cmd + Ctrl + Shift.
+
+## Development
+
+### Prerequisites
+
 - Xcode 16.0 or later
-- [mise](https://mise.jdx.dev/) (for tool version management)
+- [mise](https://mise.jdx.dev/), which installs the pinned XcodeGen version
+- An Apple Development certificate, for builds that you run
+- An Apple ID signed in under **Xcode > Settings > Accounts**, because
+  `make build` lets Xcode fetch the provisioning profile
 
-## Setup
+### Set up
+
+1. Install XcodeGen:
+
+   ```bash
+   mise install
+   ```
+
+2. Copy the signing template and replace `YOUR_TEAM_ID` with your Apple team
+   ID:
+
+   ```bash
+   cp Configs/Signing.local.xcconfig.example Configs/Signing.local.xcconfig
+   ```
+
+3. Generate the Xcode project:
+
+   ```bash
+   make generate
+   ```
+
+BisectWindow signs builds with your Apple Development certificate. A stable
+signature keeps the Accessibility permission valid across rebuilds. Without
+the signature, macOS ties the permission to each build, and you must grant it
+again after every build.
+
+### Build and test
+
+| Command | Purpose |
+| --- | --- |
+| `make build` | Build the app. Needs the team ID. |
+| `make run` | Build and start the app. |
+| `make test` | Run the unit tests. Builds unsigned and needs no team ID. |
+| `make logs` | Stream the unified log of Debug builds. |
+
+GitHub Actions runs `make test` on every pull request and on every push to
+`main`.
+
+### Regenerate the app icon
+
+`scripts/generate-app-icon.swift` draws the icon and writes every size of the
+icon set. Edit the script, then run:
 
 ```bash
-# Install tools (XcodeGen)
-mise install
-
-# Set your Apple development team for code signing
-cp Configs/Signing.local.xcconfig.example Configs/Signing.local.xcconfig
-# Then replace YOUR_TEAM_ID in Configs/Signing.local.xcconfig
-
-# Generate Xcode project
-make generate
+swift scripts/generate-app-icon.swift Sources/Resources/Assets.xcassets/AppIcon.appiconset
 ```
 
-Debug builds are signed with your Apple Development certificate so that the
-Accessibility permission survives rebuilds. `make test` needs no team ID.
-
-## Build
-
-```bash
-# Build from command line
-make build
-
-# Or open the generated .xcodeproj in Xcode and build (Cmd+B)
-```
-
-## Test
-
-```bash
-make test
-```
-
-## Logs
-
-Debug builds write to the unified log. Stream them with:
-
-```bash
-make logs
-```
-
-## Project Structure
+### Project structure
 
 ```
 Sources/
-  App/            -- Application entry point
-  Domain/         -- Core logic (pure Swift, no OS dependencies)
+  App/            -- Entry point, coordinator, and permission flow
+  Domain/         -- Tiling and traversal logic (pure Swift, no OS dependencies)
     Models/       -- Data models (Rect, WindowInfo, AppConfig)
-  Interface/      -- Protocol definitions
-  Infrastructure/ -- OS-level implementations (Accessibility, HotKey, Logging, Persistence)
-  UI/             -- SwiftUI views (Settings, Overlay)
+  Interface/      -- Protocols that separate the layers
+  Infrastructure/ -- OS integrations (Accessibility, HotKey, Logging, Persistence)
+  UI/             -- Overlay, permission prompt, settings, and status bar
+  Resources/      -- Asset catalog with the app icon
 Tests/
   LogicTests/     -- Unit tests that need no Accessibility permission
     Support/      -- Shared fixtures
+scripts/          -- Development tools
 ```
+
+SPEC.md describes the full design and the roadmap.
