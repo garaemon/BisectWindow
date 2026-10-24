@@ -31,3 +31,12 @@ final class PrefixOptionTests: XCTestCase {
         }
     }
 }
+
+final class PrefixOptionDefaultTests: XCTestCase {
+    func testCmdCtrlOptionMatchesDomainDefault() {
+        XCTAssertEqual(
+            PrefixOption.cmdCtrl.modifiers,
+            AppConfig.defaultPrefixKeyModifiers
+        )
+    }
+}

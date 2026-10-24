@@ -13,7 +13,12 @@ enum ScreenGeometry {
         }
     }
 
-    /// Find the adjacent screen in the given direction.
+    /// Screens that macOS arranges edge to edge may overlap by a fraction of
+    /// a point after conversion to AX coordinates. In points.
+    private static let adjacencySlack: Double = 1.0
+
+    /// Returns the nearest screen beyond `current` in `direction` that
+    /// overlaps it on the perpendicular axis, or nil when none exists.
     static func findAdjacentScreen(
         from current: ScreenInfo,
         direction: Direction,
@@ -23,24 +28,24 @@ enum ScreenGeometry {
         switch direction {
         case .right:
             return candidates
-                .filter { $0.frame.minX >= current.frame.maxX - 1 }
+                .filter { $0.frame.minX >= current.frame.maxX - adjacencySlack }
                 .filter { hasVerticalOverlap($0.frame, current.frame) }
                 .min { $0.frame.minX < $1.frame.minX }
         case .left:
             return candidates
-                .filter { $0.frame.maxX <= current.frame.minX + 1 }
+                .filter { $0.frame.maxX <= current.frame.minX + adjacencySlack }
                 .filter { hasVerticalOverlap($0.frame, current.frame) }
-                .min { $0.frame.maxX > $1.frame.maxX }
+                .max { $0.frame.maxX < $1.frame.maxX }
         case .down:
             return candidates
-                .filter { $0.frame.minY >= current.frame.maxY - 1 }
+                .filter { $0.frame.minY >= current.frame.maxY - adjacencySlack }
                 .filter { hasHorizontalOverlap($0.frame, current.frame) }
                 .min { $0.frame.minY < $1.frame.minY }
         case .up:
             return candidates
-                .filter { $0.frame.maxY <= current.frame.minY + 1 }
+                .filter { $0.frame.maxY <= current.frame.minY + adjacencySlack }
                 .filter { hasHorizontalOverlap($0.frame, current.frame) }
-                .min { $0.frame.maxY > $1.frame.maxY }
+                .max { $0.frame.maxY < $1.frame.maxY }
         }
     }
 

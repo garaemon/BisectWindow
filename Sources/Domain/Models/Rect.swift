@@ -11,7 +11,7 @@ struct Rect: Equatable {
     var midX: Double { x + width / 2.0 }
     var midY: Double { y + height / 2.0 }
 
-    func isApproximatelyEqual(to other: Rect, tolerance: Double = 10.0) -> Bool {
+    func isApproximatelyEqual(to other: Rect, tolerance: Double) -> Bool {
         return abs(x - other.x) <= tolerance
             && abs(y - other.y) <= tolerance
             && abs(width - other.width) <= tolerance

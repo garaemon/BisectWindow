@@ -15,17 +15,23 @@ final class RectTests: XCTestCase {
 
     func testIsApproximatelyEqualExactMatch() {
         let other = Rect(x: 0, y: 0, width: 1920, height: 1080)
-        XCTAssertTrue(screen.isApproximatelyEqual(to: other))
+        XCTAssertTrue(screen.isApproximatelyEqual(
+            to: other, tolerance: BisectEngine.defaultTolerance
+        ))
     }
 
     func testIsApproximatelyEqualWithinTolerance() {
         let other = Rect(x: 5, y: -3, width: 1925, height: 1075)
-        XCTAssertTrue(screen.isApproximatelyEqual(to: other))
+        XCTAssertTrue(screen.isApproximatelyEqual(
+            to: other, tolerance: BisectEngine.defaultTolerance
+        ))
     }
 
     func testIsApproximatelyEqualOutsideTolerance() {
         let other = Rect(x: 15, y: 0, width: 1920, height: 1080)
-        XCTAssertFalse(screen.isApproximatelyEqual(to: other))
+        XCTAssertFalse(screen.isApproximatelyEqual(
+            to: other, tolerance: BisectEngine.defaultTolerance
+        ))
     }
 
     func testLeftHalf() {

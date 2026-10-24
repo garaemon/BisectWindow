@@ -1,3 +1,5 @@
+/// Where the focused window should go. `noAction` means the window's centre
+/// lies on no screen, or no screen exists in the traversal direction.
 enum BisectResult: Equatable {
     case move(Rect)
     case noAction
@@ -17,10 +19,30 @@ enum WindowPosition: Equatable {
     case other
 }
 
+/// Decides where the focused window goes for one key press.
+///
+/// Rules are tried in order, and the first match wins:
+/// 1. Screen traversal: the window hugs the screen edge in the pressed
+///    direction, so it jumps to the neighbouring screen.
+/// 2. Quarter tiling: the window is a half and the direction is
+///    perpendicular to that half.
+/// 3. Half snap: everything else.
+///
+/// All rects use Accessibility coordinates in points: the origin is the
+/// top-left of the primary display and Y grows downwards.
 struct BisectEngine {
+    /// Per-edge slack, in points, when matching a window to a half or a
+    /// quarter of the screen.
+    static let defaultTolerance: Double = 10.0
+
+    /// Slack, in points, for "touches the screen edge" in traversal checks.
+    /// Apps with a minimum window width stop tens of points short of the
+    /// edge after a half snap.
+    static let traversalEdgeTolerance: Double = 50.0
+
     private let tolerance: Double
 
-    init(tolerance: Double = 10.0) {
+    init(tolerance: Double = BisectEngine.defaultTolerance) {
         self.tolerance = tolerance
     }
 
@@ -55,9 +77,8 @@ struct BisectEngine {
             position: position, direction: direction,
             screen: screen.frame
         ) {
-            return handleResizability(
-                window: window, targetFrame: quarterFrame,
-                screen: screen.frame
+            return makeMoveResult(
+                window: window, targetFrame: quarterFrame
             )
         }
 
@@ -65,9 +86,8 @@ struct BisectEngine {
         let halfFrame = computeHalfFrame(
             direction: direction, screen: screen.frame
         )
-        return handleResizability(
-            window: window, targetFrame: halfFrame,
-            screen: screen.frame
+        return makeMoveResult(
+            window: window, targetFrame: halfFrame
         )
     }
 
@@ -80,9 +100,8 @@ struct BisectEngine {
         ) else {
             return .noAction
         }
-        return handleResizability(
-            window: window, targetFrame: screen.frame,
-            screen: screen.frame
+        return makeMoveResult(
+            window: window, targetFrame: screen.frame
         )
     }
 
@@ -147,7 +166,7 @@ private extension BisectEngine {
     func shouldTraverseScreen(
         direction: Direction, window: Rect, screen: Rect
     ) -> Bool {
-        let edgeTolerance = max(tolerance, 50.0)
+        let edgeTolerance = max(tolerance, Self.traversalEdgeTolerance)
         let spansVertically = window.minY <= screen.minY + edgeTolerance
             && window.maxY >= screen.maxY - edgeTolerance
         switch direction {
@@ -183,9 +202,8 @@ private extension BisectEngine {
         let targetFrame = computeHalfFrame(
             direction: direction.opposite, screen: nextScreen.frame
         )
-        return handleResizability(
-            window: window, targetFrame: targetFrame,
-            screen: nextScreen.frame
+        return makeMoveResult(
+            window: window, targetFrame: targetFrame
         )
     }
 
@@ -206,9 +224,10 @@ private extension BisectEngine {
         }
     }
 
-    /// Non-resizable windows are moved only (centered in target).
-    func handleResizability(
-        window: WindowInfo, targetFrame: Rect, screen: Rect
+    /// Returns the move of `window` into `targetFrame`. A non-resizable
+    /// window keeps its size and is centred in the target instead.
+    func makeMoveResult(
+        window: WindowInfo, targetFrame: Rect
     ) -> BisectResult {
         if window.isResizable {
             return .move(targetFrame)
