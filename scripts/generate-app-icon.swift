@@ -13,12 +13,18 @@ let iconPointSizes = [16, 32, 128, 256, 512]
 let canvasSize: CGFloat = 1024
 let bodyInset: CGFloat = 100
 let bodyCornerRadius: CGFloat = 185
+let tileAreaInset: CGFloat = 110
+let tileGap: CGFloat = 28
+let tileCornerRadius: CGFloat = 44
 
 func drawIcon(in context: CGContext) {
     let canvas = CGRect(x: 0, y: 0, width: canvasSize, height: canvasSize)
     let body = canvas.insetBy(dx: bodyInset, dy: bodyInset)
     drawBody(body, in: context)
-    drawTiles(in: body.insetBy(dx: 110, dy: 110), context: context)
+    drawTiles(
+        in: body.insetBy(dx: tileAreaInset, dy: tileAreaInset),
+        context: context
+    )
 }
 
 func drawBody(_ body: CGRect, in context: CGContext) {
@@ -59,26 +65,29 @@ func drawBody(_ body: CGRect, in context: CGContext) {
 /// Draws the screen split into four quarters, with the top-right quarter
 /// highlighted as the tile a window was just bisected into.
 func drawTiles(in area: CGRect, context: CGContext) {
-    let gap: CGFloat = 28
-    let tileWidth = (area.width - gap) / 2
-    let tileHeight = (area.height - gap) / 2
+    let tileWidth = (area.width - tileGap) / 2
+    let tileHeight = (area.height - tileGap) / 2
+    let rightColumnX = area.minX + tileWidth + tileGap
+    let topRowY = area.minY + tileHeight + tileGap
+    // CGContext puts the origin at the bottom-left, so the top row has the
+    // larger y.
     let tileOrigins = [
-        CGPoint(x: area.minX, y: area.minY + tileHeight + gap),
-        CGPoint(x: area.minX + tileWidth + gap, y: area.minY + tileHeight + gap),
+        CGPoint(x: area.minX, y: topRowY),
+        CGPoint(x: rightColumnX, y: topRowY),
         CGPoint(x: area.minX, y: area.minY),
-        CGPoint(x: area.minX + tileWidth + gap, y: area.minY),
+        CGPoint(x: rightColumnX, y: area.minY),
     ]
-    let highlightedTileIndex = 1
+    let topRightTileIndex = 1
     for (index, origin) in tileOrigins.enumerated() {
         let tile = CGRect(
             origin: origin, size: CGSize(width: tileWidth, height: tileHeight)
         )
-        let tileColor = index == highlightedTileIndex
+        let tileColor = index == topRightTileIndex
             ? NSColor(red: 0.36, green: 0.78, blue: 1.0, alpha: 1)
             : NSColor.white.withAlphaComponent(0.18)
         context.addPath(CGPath(
-            roundedRect: tile, cornerWidth: 44, cornerHeight: 44,
-            transform: nil
+            roundedRect: tile, cornerWidth: tileCornerRadius,
+            cornerHeight: tileCornerRadius, transform: nil
         ))
         context.setFillColor(tileColor.cgColor)
         context.fillPath()
