@@ -1,7 +1,7 @@
 import Cocoa
 import SwiftUI
 
-/// Hosts a borderless, click-through NSPanel that surfaces the small HUD dot
+/// Hosts a borderless, click-through NSPanel that surfaces a small app icon
 /// shown while the prefix key is held.
 final class OverlayWindowController: OverlayProtocol {
     private var panel: NSPanel?
@@ -19,7 +19,7 @@ final class OverlayWindowController: OverlayProtocol {
 }
 
 private extension OverlayWindowController {
-    static let panelSize = NSSize(width: 32, height: 32)
+    static let panelSize = NSSize(width: 48, height: 48)
     static let screenMargin: CGFloat = 24
 
     func makePanel() -> NSPanel {
@@ -42,7 +42,7 @@ private extension OverlayWindowController {
         ]
 
         let hostingView = NSHostingView(
-            rootView: OverlayDotView(panelSize: Self.panelSize)
+            rootView: OverlayIconView(panelSize: Self.panelSize)
         )
         hostingView.frame = initialRect
         newPanel.contentView = hostingView
@@ -60,13 +60,16 @@ private extension OverlayWindowController {
     }
 }
 
-private struct OverlayDotView: View {
+private struct OverlayIconView: View {
     let panelSize: NSSize
 
     var body: some View {
-        Circle()
-            .fill(Color.accentColor.opacity(0.85))
-            .frame(width: panelSize.width / 2, height: panelSize.height / 2)
+        Image(nsImage: NSApp.applicationIconImage)
+            .resizable()
+            .interpolation(.high)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: panelSize.width * 0.75, height: panelSize.height * 0.75)
+            .opacity(0.9)
             .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 1)
             .frame(width: panelSize.width, height: panelSize.height)
     }
