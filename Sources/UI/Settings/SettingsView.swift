@@ -20,7 +20,7 @@ struct SettingsView: View {
                 "Show overlay indicator while prefix key is held",
                 isOn: $viewModel.isOverlayEnabled
             )
-            Text("The indicator appears in the bottom-right corner of the main screen as a small dot to confirm BisectWindow is listening for follow-up keys.")
+            Text("The indicator appears in the bottom-right corner of the main screen as a small app icon to confirm BisectWindow is listening for follow-up keys.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
