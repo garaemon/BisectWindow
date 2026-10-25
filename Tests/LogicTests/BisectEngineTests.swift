@@ -241,6 +241,18 @@ final class BisectEngineTests: XCTestCase {
         XCTAssertEqual(result, .noAction)
     }
 
+    func testHalfTileLeftWhenWindowCenterHangsOffScreen() {
+        let window = EngineFixtures.makeWindow(
+            frame: Rect(x: 960, y: 0, width: 1920, height: 1080)
+        )
+        let result = engine.computeFrame(
+            direction: .left, window: window, screens: [screen]
+        )
+        XCTAssertEqual(
+            result, .move(Rect(x: 0, y: 0, width: 960, height: 1080))
+        )
+    }
+
     // MARK: - Quarter does not further subdivide
 
     func testQuarterDoesNotSubdivide() {

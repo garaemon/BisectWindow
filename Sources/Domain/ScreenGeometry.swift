@@ -1,16 +1,41 @@
 enum ScreenGeometry {
-    /// Find the screen that contains the center of the given rect.
+    /// Returns the screen that contains the center of `rect`. When the
+    /// center lies on no screen, returns the screen that overlaps `rect` the
+    /// most, or nil when `rect` overlaps no screen.
     static func findScreen(
         containing rect: Rect,
         screens: [ScreenInfo]
     ) -> ScreenInfo? {
         let center = rect.centerPoint()
-        return screens.first { screen in
+        let screenAtCenter = screens.first { screen in
             center.x >= screen.frame.minX
                 && center.x < screen.frame.maxX
                 && center.y >= screen.frame.minY
                 && center.y < screen.frame.maxY
         }
+        // A window that hangs off the screen edge must stay reachable, or
+        // every key press on it becomes a no-op.
+        return screenAtCenter ?? findScreenWithLargestOverlap(
+            rect, screens: screens
+        )
+    }
+
+    private static func findScreenWithLargestOverlap(
+        _ rect: Rect, screens: [ScreenInfo]
+    ) -> ScreenInfo? {
+        let overlaps = screens.map { screen in
+            (screen: screen, area: computeOverlapArea(rect, screen.frame))
+        }
+        return overlaps
+            .filter { $0.area > 0 }
+            .max { $0.area < $1.area }?
+            .screen
+    }
+
+    private static func computeOverlapArea(_ a: Rect, _ b: Rect) -> Double {
+        let overlapWidth = min(a.maxX, b.maxX) - max(a.minX, b.minX)
+        let overlapHeight = min(a.maxY, b.maxY) - max(a.minY, b.minY)
+        return max(overlapWidth, 0) * max(overlapHeight, 0)
     }
 
     /// Screens that macOS arranges edge to edge may overlap by a fraction of

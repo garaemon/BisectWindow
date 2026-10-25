@@ -36,6 +36,24 @@ final class ScreenGeometryTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func testFindScreenFallsBackToOverlappingScreenWhenCenterIsOffScreen() {
+        // A failed resize can leave a window that hangs off the right edge
+        // with its centre beyond every screen.
+        let hangingOff = Rect(x: 1000, y: 100, width: 1920, height: 600)
+        let result = ScreenGeometry.findScreen(
+            containing: hangingOff, screens: [screen1]
+        )
+        XCTAssertEqual(result, screen1)
+    }
+
+    func testFindScreenFallsBackToScreenWithLargestOverlap() {
+        let hangingOff = Rect(x: 1000, y: 900, width: 1920, height: 600)
+        let result = ScreenGeometry.findScreen(
+            containing: hangingOff, screens: [screen1, screen3]
+        )
+        XCTAssertEqual(result, screen3)
+    }
+
     func testFindAdjacentScreenToTheRight() {
         let result = ScreenGeometry.findAdjacentScreen(
             from: screen1, direction: .right, screens: [screen1, screen2]

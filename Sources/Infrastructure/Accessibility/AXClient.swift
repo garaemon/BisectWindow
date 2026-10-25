@@ -91,6 +91,46 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
             return false
         }
 
+        // Some apps, such as Ghostty, animate frame changes while
+        // AXEnhancedUserInterface is on. Each set then restores the other
+        // attribute, so the window keeps its old width. Rectangle works
+        // around the same bug:
+        // https://github.com/rxhanson/Rectangle/blob/main/Rectangle/AccessibilityElement.swift
+        return withEnhancedUserInterfaceDisabled(axApp) {
+            setFrame(axWindow, to: frame)
+        }
+    }
+}
+
+// MARK: - Private helpers
+
+private extension AXClient {
+    static let enhancedUserInterfaceAttribute =
+        "AXEnhancedUserInterface" as CFString
+
+    func withEnhancedUserInterfaceDisabled<Result>(
+        _ axApp: AXUIElement, perform body: () -> Result
+    ) -> Result {
+        var value: AnyObject?
+        let readResult = AXUIElementCopyAttributeValue(
+            axApp, Self.enhancedUserInterfaceAttribute, &value
+        )
+        let wasEnabled = readResult == .success
+            && (value as? Bool) == true
+        guard wasEnabled else { return body() }
+
+        AXUIElementSetAttributeValue(
+            axApp, Self.enhancedUserInterfaceAttribute, kCFBooleanFalse
+        )
+        defer {
+            AXUIElementSetAttributeValue(
+                axApp, Self.enhancedUserInterfaceAttribute, kCFBooleanTrue
+            )
+        }
+        return body()
+    }
+
+    func setFrame(_ axWindow: AXUIElement, to frame: Rect) -> Bool {
         var point = CGPoint(x: frame.x, y: frame.y)
         var size = CGSize(width: frame.width, height: frame.height)
 
@@ -120,11 +160,7 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
         // counts as success.
         return positionResult == .success || sizeResult == .success
     }
-}
 
-// MARK: - Private helpers
-
-private extension AXClient {
     func copyAttributeValue(
         _ element: AXUIElement, attribute: String
     ) -> AXUIElement? {
