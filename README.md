@@ -48,6 +48,24 @@ If you close the window before you grant access, choose
 **Grant Accessibility Access…** from the menu bar icon to open the window
 again.
 
+### If the grant has no effect
+
+macOS stores the grant for the bundle ID together with the code signature.
+If you ran a build with a different signature before, such as an unsigned
+build from before you set the team ID, the list keeps that old entry. The
+switch then turns on, but the current build still has no access.
+
+To fix this, quit BisectWindow, remove the old entry, and grant access again:
+
+```bash
+tccutil reset Accessibility com.garaemon.BisectWindow
+make run
+```
+
+`tccutil` can only remove grants. You still turn on BisectWindow in System
+Settings after the reset. If the list shows more than one BisectWindow entry,
+remove all of them with the **−** button before you grant access again.
+
 ## Usage
 
 Hold the prefix chord, which is **Cmd + Ctrl** by default, and press one of
@@ -111,6 +129,15 @@ options:
    ```bash
    cp Configs/Signing.local.xcconfig.example Configs/Signing.local.xcconfig
    ```
+
+   The `OU=` value in this command's output is your team ID:
+
+   ```bash
+   security find-certificate -c "Apple Development" -p | openssl x509 -noout -subject
+   ```
+
+   Set the team ID in this file, not in the Signing & Capabilities editor.
+   `make generate` rewrites the Xcode project and drops changes made there.
 
 3. Generate the Xcode project:
 
