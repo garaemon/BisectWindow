@@ -106,16 +106,20 @@ private extension AXClient {
     static let enhancedUserInterfaceAttribute =
         "AXEnhancedUserInterface" as CFString
 
-    /// Returns the pid of the frontmost app. NSWorkspace reports pid -1 for
-    /// some apps, such as Emacs started through a launcher script, so ask
-    /// the system-wide Accessibility element for the focused app instead.
+    /// Returns the pid of the frontmost app. Falls back to the system-wide
+    /// AXFocusedApplication when NSWorkspace reports no valid pid.
     func resolveFrontmostProcessId() -> pid_t? {
         let app = NSWorkspace.shared.frontmostApplication
-        if let pid = app?.processIdentifier, pid > 0 {
-            return pid
-        }
-        debugLog("[AXClient] frontmostApplication has no pid: bundle=\(app?.bundleIdentifier ?? "nil")")
+        return AXTargetSelection.selectProcessId(
+            workspaceProcessId: app?.processIdentifier,
+            focusedApplicationProcessId: {
+                debugLog("[AXClient] frontmostApplication has no pid: bundle=\(app?.bundleIdentifier ?? "nil")")
+                return copyFocusedApplicationProcessId()
+            }
+        )
+    }
 
+    func copyFocusedApplicationProcessId() -> pid_t? {
         let systemWide = AXUIElementCreateSystemWide()
         guard let axApp = copyAttributeValue(
             systemWide, attribute: kAXFocusedApplicationAttribute
@@ -124,34 +128,36 @@ private extension AXClient {
         }
         var pid: pid_t = 0
         let result = AXUIElementGetPid(axApp, &pid)
-        guard result == .success, pid > 0 else {
+        guard result == .success else {
             debugLog("[AXClient] AXUIElementGetPid failed: \(result.rawValue)")
             return nil
         }
         return pid
     }
 
-    /// Returns the window to tile. Some apps report no
-    /// AXFocusedWindow, so fall back to AXMainWindow and then to the first
-    /// entry of AXWindows.
+    /// Returns the window to tile, in the order AXTargetSelection defines.
     func resolveTargetWindow(_ axApp: AXUIElement) -> AXUIElement? {
-        if let window = copyAttributeValue(
-            axApp, attribute: kAXFocusedWindowAttribute
-        ) {
-            return window
-        }
-        if let window = copyAttributeValue(
-            axApp, attribute: kAXMainWindowAttribute
-        ) {
-            return window
-        }
+        AXTargetSelection.selectWindow(
+            focusedWindow: {
+                copyAttributeValue(
+                    axApp, attribute: kAXFocusedWindowAttribute
+                )
+            },
+            mainWindow: {
+                copyAttributeValue(axApp, attribute: kAXMainWindowAttribute)
+            },
+            windows: { copyWindows(axApp) }
+        )
+    }
+
+    func copyWindows(_ axApp: AXUIElement) -> [AXUIElement] {
         var value: AnyObject?
         let result = AXUIElementCopyAttributeValue(
             axApp, kAXWindowsAttribute as CFString, &value
         )
         let windows = value as? [AXUIElement] ?? []
         debugLog("[AXClient] AXWindows: result=\(result.rawValue) count=\(windows.count)")
-        return windows.first
+        return windows
     }
 
     func withEnhancedUserInterfaceDisabled<Result>(
