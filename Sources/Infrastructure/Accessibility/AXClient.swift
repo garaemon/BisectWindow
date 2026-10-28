@@ -5,14 +5,13 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
     // MARK: - SystemStateProtocol
 
     func fetchFocusedWindow() -> WindowInfo? {
-        guard let app = NSWorkspace.shared.frontmostApplication else {
+        guard let pid = resolveFrontmostProcessId() else {
             return nil
         }
-        let pid = app.processIdentifier
         let axApp = AXUIElementCreateApplication(pid)
 
         guard let axWindow = resolveTargetWindow(axApp) else {
-            debugLog("[AXClient] no window for pid=\(pid) bundle=\(app.bundleIdentifier ?? "nil")")
+            debugLog("[AXClient] no window for pid=\(pid)")
             return nil
         }
 
@@ -107,7 +106,32 @@ private extension AXClient {
     static let enhancedUserInterfaceAttribute =
         "AXEnhancedUserInterface" as CFString
 
-    /// Returns the window to tile. Some apps, such as Emacs, report no
+    /// Returns the pid of the frontmost app. NSWorkspace reports pid -1 for
+    /// some apps, such as Emacs started through a launcher script, so ask
+    /// the system-wide Accessibility element for the focused app instead.
+    func resolveFrontmostProcessId() -> pid_t? {
+        let app = NSWorkspace.shared.frontmostApplication
+        if let pid = app?.processIdentifier, pid > 0 {
+            return pid
+        }
+        debugLog("[AXClient] frontmostApplication has no pid: bundle=\(app?.bundleIdentifier ?? "nil")")
+
+        let systemWide = AXUIElementCreateSystemWide()
+        guard let axApp = copyAttributeValue(
+            systemWide, attribute: kAXFocusedApplicationAttribute
+        ) else {
+            return nil
+        }
+        var pid: pid_t = 0
+        let result = AXUIElementGetPid(axApp, &pid)
+        guard result == .success, pid > 0 else {
+            debugLog("[AXClient] AXUIElementGetPid failed: \(result.rawValue)")
+            return nil
+        }
+        return pid
+    }
+
+    /// Returns the window to tile. Some apps report no
     /// AXFocusedWindow, so fall back to AXMainWindow and then to the first
     /// entry of AXWindows.
     func resolveTargetWindow(_ axApp: AXUIElement) -> AXUIElement? {
