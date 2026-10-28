@@ -29,6 +29,7 @@ final class AppCoordinator {
         configRepository: ConfigRepositoryProtocol =
             UserDefaultsConfigRepository(),
         overlay: OverlayProtocol = OverlayWindowController(),
+        launchAtLogin: LaunchAtLoginProtocol = LaunchAtLoginClient(),
         permissionFlow: AccessibilityPermissionFlow =
             AccessibilityPermissionFlow(
                 permission: AccessibilityPermissionClient(),
@@ -43,7 +44,8 @@ final class AppCoordinator {
         self.permissionFlow = permissionFlow
         self.isOverlayEnabled = config.isOverlayEnabled
         let settingsViewModel = SettingsViewModel(
-            configRepository: configRepository
+            configRepository: configRepository,
+            launchAtLogin: launchAtLogin
         )
         self.settingsWindowController = SettingsWindowController(
             viewModel: settingsViewModel

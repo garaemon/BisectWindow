@@ -113,9 +113,13 @@ Choose **Settings…** from the menu bar icon. The settings window offers these
 options:
 
 - **General:** Show or hide the indicator in the bottom-right corner of the
-  main screen.
+  main screen, and turn **Launch at login** on or off.
 - **Key Bindings:** Pick the prefix chord from Cmd + Ctrl, Cmd + Option,
   Ctrl + Option, or Cmd + Ctrl + Shift.
+
+With **Launch at login** on, macOS lists BisectWindow under System Settings >
+General > Login Items. You can turn it off there too. If you do, the settings
+window shows a button that opens that pane so you can allow it again.
 
 ## Development
 
@@ -191,7 +195,8 @@ Sources/
   Domain/         -- Tiling and traversal logic (pure Swift, no OS dependencies)
     Models/       -- Data models (Rect, WindowInfo, AppConfig)
   Interface/      -- Protocols that separate the layers
-  Infrastructure/ -- OS integrations (Accessibility, HotKey, Logging, Persistence)
+  Infrastructure/ -- OS integrations (Accessibility, HotKey, LaunchAtLogin,
+                     Logging, Persistence)
   UI/             -- Overlay, permission prompt, settings, and status bar
   Resources/      -- Asset catalog with the app icon
 Tests/
