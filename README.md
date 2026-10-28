@@ -159,6 +159,8 @@ options:
 
    `make build`, `make run`, and `make test` regenerate the project before
    they build, so you need this step only to open the project in Xcode.
+   `make generate` skips generation when neither `project.yml` nor the list
+   of source files changed. To force it, run `mise exec -- xcodegen generate`.
 
 BisectWindow signs builds with your Apple Development certificate. A stable
 signature keeps the Accessibility permission valid across rebuilds. Without

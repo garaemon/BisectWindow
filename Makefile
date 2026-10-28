@@ -3,10 +3,11 @@
 APP_NAME := BisectWindow
 
 # The Xcode project is generated and lists source files explicitly, so a
-# stale project misses files added since it was generated. Regenerate on
-# every build; XcodeGen takes about a second.
+# stale project misses files added since it was generated. --use-cache skips
+# generation unless the spec or the file list changed, or the project is
+# missing, so every build can depend on this target.
 generate:
-	mise exec -- xcodegen generate
+	mise exec -- xcodegen generate --use-cache
 
 build: generate
 	xcodebuild build \
