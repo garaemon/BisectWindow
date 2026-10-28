@@ -2,10 +2,13 @@
 
 APP_NAME := BisectWindow
 
+# The Xcode project is generated and lists source files explicitly, so a
+# stale project misses files added since it was generated. Regenerate on
+# every build; XcodeGen takes about a second.
 generate:
 	mise exec -- xcodegen generate
 
-build:
+build: generate
 	xcodebuild build \
 		-project BisectWindow.xcodeproj \
 		-scheme BisectWindow \
@@ -15,7 +18,7 @@ build:
 # Tests build unsigned so fresh checkouts and CI need no Apple ID session.
 # project.yml selects Automatic signing, so the style and team are cleared
 # too; otherwise xcodebuild still tries to resolve a provisioning profile.
-test:
+test: generate
 	xcodebuild test \
 		-project BisectWindow.xcodeproj \
 		-scheme BisectWindow \

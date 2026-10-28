@@ -18,9 +18,6 @@ jobs:
 
       - uses: jdx/mise-action@v5
 
-      - name: Generate Xcode project
-        run: make generate
-
       # make test builds unsigned, so CI needs neither a team ID nor an
       # Apple ID session.
       - name: Run tests
