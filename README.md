@@ -157,6 +157,9 @@ options:
    make generate
    ```
 
+   `make build`, `make run`, and `make test` regenerate the project before
+   they build, so you need this step only to open the project in Xcode.
+
 BisectWindow signs builds with your Apple Development certificate. A stable
 signature keeps the Accessibility permission valid across rebuilds. Without
 the signature, macOS ties the permission to each build, and you must grant it
