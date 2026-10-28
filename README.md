@@ -95,6 +95,18 @@ BisectWindow follows these rules:
 - A window that cannot be resized keeps its size and moves to the centre of
   the target area.
 
+### Emacs
+
+By default, Emacs rounds the frame size to whole characters and lines, so a
+tiled Emacs frame falls a few points short of the target. With a large font
+the gap exceeds the 10-point margin, and a second arrow key tiles to a half
+again instead of a quarter. To make Emacs take the exact size, add this line
+to your init file:
+
+```elisp
+(setq frame-resize-pixelwise t)
+```
+
 ## Settings
 
 Choose **Settings…** from the menu bar icon. The settings window offers these

@@ -5,15 +5,13 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
     // MARK: - SystemStateProtocol
 
     func fetchFocusedWindow() -> WindowInfo? {
-        guard let app = NSWorkspace.shared.frontmostApplication else {
+        guard let pid = resolveFrontmostProcessId() else {
             return nil
         }
-        let pid = app.processIdentifier
         let axApp = AXUIElementCreateApplication(pid)
 
-        guard let axWindow = copyAttributeValue(
-            axApp, attribute: kAXFocusedWindowAttribute
-        ) else {
+        guard let axWindow = resolveTargetWindow(axApp) else {
+            debugLog("[AXClient] no window for pid=\(pid)")
             return nil
         }
 
@@ -21,6 +19,7 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
             axWindow, attribute: kAXPositionAttribute,
             type: .cgPoint, initial: CGPoint.zero
         ) else {
+            debugLog("[AXClient] cannot read the window position")
             return nil
         }
 
@@ -28,6 +27,7 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
             axWindow, attribute: kAXSizeAttribute,
             type: .cgSize, initial: CGSize.zero
         ) else {
+            debugLog("[AXClient] cannot read the window size")
             return nil
         }
 
@@ -85,9 +85,7 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
         let pid = pid_t(ownerProcessId)
         let axApp = AXUIElementCreateApplication(pid)
 
-        guard let axWindow = copyAttributeValue(
-            axApp, attribute: kAXFocusedWindowAttribute
-        ) else {
+        guard let axWindow = resolveTargetWindow(axApp) else {
             return false
         }
 
@@ -107,6 +105,60 @@ final class AXClient: SystemStateProtocol, WindowActionProtocol {
 private extension AXClient {
     static let enhancedUserInterfaceAttribute =
         "AXEnhancedUserInterface" as CFString
+
+    /// Returns the pid of the frontmost app. Falls back to the system-wide
+    /// AXFocusedApplication when NSWorkspace reports no valid pid.
+    func resolveFrontmostProcessId() -> pid_t? {
+        let app = NSWorkspace.shared.frontmostApplication
+        return AXTargetSelection.selectProcessId(
+            workspaceProcessId: app?.processIdentifier,
+            focusedApplicationProcessId: {
+                debugLog("[AXClient] frontmostApplication has no pid: bundle=\(app?.bundleIdentifier ?? "nil")")
+                return copyFocusedApplicationProcessId()
+            }
+        )
+    }
+
+    func copyFocusedApplicationProcessId() -> pid_t? {
+        let systemWide = AXUIElementCreateSystemWide()
+        guard let axApp = copyAttributeValue(
+            systemWide, attribute: kAXFocusedApplicationAttribute
+        ) else {
+            return nil
+        }
+        var pid: pid_t = 0
+        let result = AXUIElementGetPid(axApp, &pid)
+        guard result == .success else {
+            debugLog("[AXClient] AXUIElementGetPid failed: \(result.rawValue)")
+            return nil
+        }
+        return pid
+    }
+
+    /// Returns the window to tile, in the order AXTargetSelection defines.
+    func resolveTargetWindow(_ axApp: AXUIElement) -> AXUIElement? {
+        AXTargetSelection.selectWindow(
+            focusedWindow: {
+                copyAttributeValue(
+                    axApp, attribute: kAXFocusedWindowAttribute
+                )
+            },
+            mainWindow: {
+                copyAttributeValue(axApp, attribute: kAXMainWindowAttribute)
+            },
+            windows: { copyWindows(axApp) }
+        )
+    }
+
+    func copyWindows(_ axApp: AXUIElement) -> [AXUIElement] {
+        var value: AnyObject?
+        let result = AXUIElementCopyAttributeValue(
+            axApp, kAXWindowsAttribute as CFString, &value
+        )
+        let windows = value as? [AXUIElement] ?? []
+        debugLog("[AXClient] AXWindows: result=\(result.rawValue) count=\(windows.count)")
+        return windows
+    }
 
     func withEnhancedUserInterfaceDisabled<Result>(
         _ axApp: AXUIElement, perform body: () -> Result
@@ -148,6 +200,8 @@ private extension AXClient {
             axWindow, kAXSizeAttribute as CFString, sizeValue
         )
 
+        debugLog("[AXClient] set position=\(positionResult.rawValue) size=\(sizeResult.rawValue)")
+
         // Apps clamp the first position change when the old size does not
         // fit at the new origin, so set the position again after resizing.
         if sizeResult == .success {
@@ -168,7 +222,10 @@ private extension AXClient {
         let result = AXUIElementCopyAttributeValue(
             element, attribute as CFString, &value
         )
-        guard result == .success else { return nil }
+        guard result == .success, value != nil else {
+            debugLog("[AXClient] \(attribute) failed: \(result.rawValue)")
+            return nil
+        }
         // AXUIElement is a CFTypeRef bridged type
         return (value as! AXUIElement)
     }
