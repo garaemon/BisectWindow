@@ -38,3 +38,19 @@ protocol PermissionPromptProtocol: AnyObject {
     func showPrompt()
     func hidePrompt()
 }
+
+/// The app's login item. The system holds the setting, so AppConfig does
+/// not store it.
+protocol LaunchAtLoginProtocol {
+    /// Whether macOS starts the app at login.
+    var isEnabled: Bool { get }
+    /// Whether the user turned the login item off in System Settings, so
+    /// macOS waits for their approval before starting the app at login.
+    var requiresApproval: Bool { get }
+    /// Registers or unregisters the login item. Returns false when the
+    /// system refuses the change.
+    func setEnabled(_ isEnabled: Bool) -> Bool
+    /// Opens the Login Items pane of System Settings. Returns before the
+    /// user acts.
+    func openSystemSettings()
+}
