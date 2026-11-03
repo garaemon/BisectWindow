@@ -131,6 +131,9 @@ extension AppCoordinator {
         case .maximizePressed:
             debugLog("[AppCoordinator] maximize pressed")
             handleMaximize()
+        case .splitPressed(let direction):
+            debugLog("[AppCoordinator] split: \(direction)")
+            handleSplit(direction)
         }
     }
 }
@@ -161,6 +164,19 @@ private extension AppCoordinator {
             window: window, screens: screens
         )
         debugLog("[AppCoordinator] computeMaximize result: \(result)")
+        applyResult(result, ownerProcessId: window.ownerProcessId)
+    }
+
+    func handleSplit(_ direction: SplitDirection) {
+        guard let window = systemState.fetchFocusedWindow() else {
+            debugLog("[AppCoordinator] fetchFocusedWindow failed (split)")
+            return
+        }
+        debugLog("[AppCoordinator] split window: pid=\(window.ownerProcessId) frame=\(window.frame) resizable=\(window.isResizable)")
+        let result = engine.computeSplit(
+            direction: direction, window: window
+        )
+        debugLog("[AppCoordinator] computeSplit result: \(result)")
         applyResult(result, ownerProcessId: window.ownerProcessId)
     }
 

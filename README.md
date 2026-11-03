@@ -80,6 +80,9 @@ first row that matches:
 | Left / Right | Top or bottom half | Tile to the quarter in that corner |
 | Left / Right / Up / Down | Any other state | Tile to that half of the screen |
 | F | Any | Maximize |
+| 1 | Any | Maximize, like Emacs `C-x 1` |
+| 2 | Any | Shrink to the top half of the window's own frame |
+| 3 | Any | Shrink to the left half of the window's own frame |
 
 BisectWindow follows these rules:
 
@@ -93,7 +96,24 @@ BisectWindow follows these rules:
 - Up and Down never move a window to another screen.
 - A quarter never splits further. An arrow key on a quarter tiles to a half.
 - A window that cannot be resized keeps its size and moves to the centre of
-  the target area.
+  the target area. This applies to the arrow keys, F, and 1.
+
+### Emacs-style splits
+
+The 1, 2, and 3 keys follow the Emacs window commands. Unlike the arrow keys,
+2 and 3 work on the window's own frame, not on the screen:
+
+- 2 is like `C-x 2` (`split-window-below`). The window keeps the top half of
+  its current frame.
+- 3 is like `C-x 3` (`split-window-right`). The window keeps the left half of
+  its current frame.
+- 1 is like `C-x 1` (`delete-other-windows`). It maximizes the window, the
+  same as F.
+
+Splits repeat. Press 2 twice and the window becomes the top quarter of its
+original frame. Press 3 and then 2 for the top-left quarter. A window that
+cannot be resized stays where it is. A split that would make the window
+narrower or shorter than 100 points does nothing.
 
 ### Emacs
 
