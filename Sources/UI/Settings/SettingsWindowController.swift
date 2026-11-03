@@ -12,6 +12,7 @@ final class SettingsWindowController {
     }
 
     func showSettings() {
+        viewModel.refreshLaunchAtLogin()
         let settingsWindow = fetchOrMakeWindow()
         settingsWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

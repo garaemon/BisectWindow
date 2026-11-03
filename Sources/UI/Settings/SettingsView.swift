@@ -1,3 +1,5 @@
+import AppKit
+import Combine
 import SwiftUI
 
 struct SettingsView: View {
@@ -24,8 +26,30 @@ struct SettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Toggle("Launch at login", isOn: $viewModel.isLaunchAtLoginEnabled)
+            Text("macOS lists BisectWindow under System Settings > General > Login Items. You can turn it off there too.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if viewModel.launchAtLoginRequiresApproval {
+                Text("Login Items in System Settings keeps BisectWindow from starting at login. Allow it there to turn this on.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Open Login Items Settings") {
+                    viewModel.openLoginItemsSettings()
+                }
+            }
         }
         .padding()
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSApplication.didBecomeActiveNotification
+            )
+        ) { _ in
+            // The user may have changed the login item in System Settings.
+            viewModel.refreshLaunchAtLogin()
+        }
     }
 
     private var keyBindingsTab: some View {
