@@ -115,6 +115,18 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertEqual(windowAction.moves.first?.frame, screen.frame)
     }
 
+    func testSplitBelowMovesFocusedWindowToTopHalfOfItsFrame() {
+        let frame = Rect(x: 500, y: 300, width: 800, height: 400)
+        systemState.focusedWindow = WindowInfo(
+            ownerProcessId: 42, frame: frame, isResizable: true
+        )
+        let coordinator = makeCoordinator()
+
+        coordinator.handleAction(.splitPressed(.below))
+
+        XCTAssertEqual(windowAction.moves.first?.frame, frame.topHalf())
+    }
+
     func testDirectionWithoutFocusedWindowDoesNotMove() {
         let coordinator = makeCoordinator()
 

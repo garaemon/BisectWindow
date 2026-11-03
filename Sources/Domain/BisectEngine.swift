@@ -1,5 +1,6 @@
 /// Where the focused window should go. `noAction` means the window's centre
-/// lies on no screen, or no screen exists in the traversal direction.
+/// lies on no screen, no screen exists in the traversal direction, or a
+/// split cannot apply.
 enum BisectResult: Equatable {
     case move(Rect)
     case noAction
@@ -39,6 +40,11 @@ struct BisectEngine {
     /// Apps with a minimum window width stop tens of points short of the
     /// edge after a half snap.
     static let traversalEdgeTolerance: Double = 50.0
+
+    /// Smallest width or height, in points, that a split may produce.
+    /// Splits recurse without limit, so this stops repeated presses from
+    /// shrinking a window into a sliver that is hard to see or grab.
+    static let minimumSplitSize: Double = 100.0
 
     private let tolerance: Double
 
@@ -103,6 +109,30 @@ struct BisectEngine {
         return makeMoveResult(
             window: window, targetFrame: screen.frame
         )
+    }
+
+    /// Emacs-style split: shrinks the window to the top or left half of
+    /// its own frame, not the screen's. No screen lookup is needed, so a
+    /// window off every screen still splits. A window that cannot be
+    /// resized is left alone, because centring it in its own half would
+    /// only nudge it. A result below `minimumSplitSize` is refused.
+    func computeSplit(
+        direction: SplitDirection,
+        window: WindowInfo
+    ) -> BisectResult {
+        guard window.isResizable else {
+            return .noAction
+        }
+        let targetFrame: Rect
+        switch direction {
+        case .below: targetFrame = window.frame.topHalf()
+        case .right: targetFrame = window.frame.leftHalf()
+        }
+        guard targetFrame.width >= Self.minimumSplitSize,
+              targetFrame.height >= Self.minimumSplitSize else {
+            return .noAction
+        }
+        return .move(targetFrame)
     }
 
     // MARK: - Position detection
