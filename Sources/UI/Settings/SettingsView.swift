@@ -59,7 +59,7 @@ struct SettingsView: View {
                     Text(option.displayName).tag(option)
                 }
             }
-            Text("Hold the prefix combination, then press Left/Right/Up/Down to tile, or F to maximize.")
+            Text("Hold the prefix combination, then press Left/Right/Up/Down to tile, or F to maximize. Like Emacs, 2 and 3 split the window's own frame below or right, and 1 maximizes.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

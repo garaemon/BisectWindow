@@ -3,6 +3,7 @@ import Cocoa
 enum HotKeyAction: Equatable {
     case directionPressed(Direction)
     case maximizePressed
+    case splitPressed(SplitDirection)
     case prefixBegan
     case prefixEnded
 }

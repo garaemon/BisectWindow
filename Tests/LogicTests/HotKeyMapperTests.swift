@@ -49,6 +49,22 @@ final class HotKeyMapperTests: XCTestCase {
         XCTAssertEqual(mapper.mapKeyCode(Int64(kVK_ANSI_F)), .maximizePressed)
     }
 
+    func testOneKeyMapsToMaximize() {
+        XCTAssertEqual(mapper.mapKeyCode(Int64(kVK_ANSI_1)), .maximizePressed)
+    }
+
+    func testTwoKeyMapsToSplitBelow() {
+        XCTAssertEqual(
+            mapper.mapKeyCode(Int64(kVK_ANSI_2)), .splitPressed(.below)
+        )
+    }
+
+    func testThreeKeyMapsToSplitRight() {
+        XCTAssertEqual(
+            mapper.mapKeyCode(Int64(kVK_ANSI_3)), .splitPressed(.right)
+        )
+    }
+
     func testUnmappedKeyReturnsNil() {
         XCTAssertNil(mapper.mapKeyCode(Int64(kVK_ANSI_A)))
     }

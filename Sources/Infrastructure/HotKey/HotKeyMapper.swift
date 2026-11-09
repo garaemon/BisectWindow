@@ -18,6 +18,9 @@ struct HotKeyMapper {
         case kVK_UpArrow: return .directionPressed(.up)
         case kVK_DownArrow: return .directionPressed(.down)
         case kVK_ANSI_F: return .maximizePressed
+        case kVK_ANSI_1: return .maximizePressed
+        case kVK_ANSI_2: return .splitPressed(.below)
+        case kVK_ANSI_3: return .splitPressed(.right)
         default: return nil
         }
     }
